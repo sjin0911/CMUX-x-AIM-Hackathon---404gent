@@ -38,6 +38,7 @@ No package install step is required for the current MVP because it only uses Nod
 npm test
 node src/cli.js doctor
 node src/cli.js rules summary
+npm run bench
 ```
 
 Try the core guard paths:
@@ -75,6 +76,14 @@ npm run demo:agents
 The demos are safe. Dangerous commands are scanned as text and are not executed.
 
 `demo:judge` is the recommended final pitch path. It resets audit/status state, runs the core attacks, shows mock LLM escalation without API keys, then ends with agent status and audit summary.
+
+Performance benchmark:
+
+```bash
+npm run bench
+```
+
+404gent buffers output scanning and throttles repeated cmux status updates so the proxy path stays lightweight for normal agent logs.
 
 ## CLI Reference
 
@@ -228,6 +237,7 @@ docs/CMUX_DEMO.md                  cmux demo guide
 docs/CMUX_AGENT_GUARD.md           cmux guard capability matrix
 docs/STATUS_MODEL.md               Agent/surface risk status model
 docs/GEMINI_LLM.md                 Gemini review details
+docs/PERFORMANCE.md                Output buffering, throttling, benchmarks
 docs/AGENT_HOOKS.md                Agent hook examples
 docs/PITCH_SCENARIOS.md            Judge-facing attack/defense script
 docs/JUDGE_DEMO_FLOW.md            Reliable final demo flow
@@ -235,12 +245,14 @@ docs/ROADMAP.md                    Hackathon roadmap
 
 examples/404gent.config.json       Example config
 examples/404gent.mock-llm.config.json Mock LLM demo config
+examples/benchmark.config.json     Benchmark config with logging/state disabled
 examples/rules/                    Example custom rule packs
 examples/hooks/                    Hook and shell wrapper templates
 scripts/cmux-demo.sh               cmux-style end-to-end demo
 scripts/cmux-agent-demo.sh         Per-agent status demo
 scripts/judge-demo.sh              Reliable final judge demo
 scripts/demo-reset.sh              Reset audit/status state
+scripts/benchmark.js               Local overhead benchmark
 scripts/install-claude-style-hook.sh Hook config installer template
 test/                              Node test runner coverage
 ```
@@ -251,6 +263,7 @@ test/                              Node test runner coverage
 npm test
 node src/cli.js rules validate
 node src/cli.js doctor
+npm run bench
 ```
 
 Useful JSON output:

@@ -30,6 +30,12 @@ export const defaultConfig = {
   state: {
     enabled: true,
     path: ".404gent/state.json"
+  },
+  performance: {
+    outputBufferBytes: 16384,
+    outputBufferMs: 100,
+    maxOutputScanBytes: 262144,
+    cmuxStatusThrottleMs: 1000
   }
 };
 

@@ -33,6 +33,7 @@
 - Show defenses: local rules, LLM escalation, cmux alerts, audit trail.
 - Keep the claim precise: wrappers/hooks provide blocking; cmux provides status, notifications, and workspace visibility.
 - Prefer `npm run demo:judge` for final judging so audit/status counts are deterministic.
+- Mention performance explicitly: output scanning is buffered, cmux status is throttled, and LLM review is off the hot path.
 
 ## Phase 6: Policy Packs
 

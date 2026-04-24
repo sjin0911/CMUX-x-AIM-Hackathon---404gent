@@ -8,6 +8,12 @@ This is the recommended hackathon demo path. It is optimized for reliability: no
 npm run demo:judge
 ```
 
+Optional performance check:
+
+```bash
+npm run bench
+```
+
 ## Story
 
 404gent is an EDR-style runtime guardrail for AI coding agents in cmux.
@@ -215,4 +221,3 @@ That is more accurate and more credible.
 ```text
 404gent: EDR-style runtime guardrails for AI coding agents in cmux.
 ```
-

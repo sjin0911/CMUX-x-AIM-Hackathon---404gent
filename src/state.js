@@ -27,6 +27,8 @@ const CONTAMINATION_CATEGORIES = new Set([
   "malware_or_abuse"
 ]);
 
+const lastCmuxSyncByTarget = new Map();
+
 export function updateStateFromReport(report, config = {}) {
   if (config.state?.enabled === false) {
     return null;
@@ -129,7 +131,7 @@ export function formatStatus(state, { targetId } = {}) {
 export function syncStateToCmux(state, config = {}) {
   const results = [];
   for (const target of Object.values(state.targets ?? {})) {
-    results.push(syncTargetToCmux(target, config));
+    results.push(syncTargetToCmux(target, config, { force: true }));
   }
   return results;
 }
@@ -255,13 +257,24 @@ function selectTargets(state, targetId) {
   });
 }
 
-function syncTargetToCmux(target, config) {
+function syncTargetToCmux(target, config, { force = false } = {}) {
   const style = STATUS_STYLE[target.status] ?? STATUS_STYLE.clean;
   const value = target.lastFinding
     ? `${style.label}: ${target.lastFinding.category}`
     : style.label;
+  const key = `404gent:${target.id}`;
+  const signature = `${target.status}:${value}`;
+  const throttleMs = config.performance?.cmuxStatusThrottleMs ?? 1000;
+  const previous = lastCmuxSyncByTarget.get(key);
+  const now = Date.now();
 
-  return setCmuxStatus(`404gent:${target.id}`, value, {
+  if (!force && previous?.signature === signature && now - previous.timestamp < throttleMs) {
+    return { status: "throttled", key };
+  }
+
+  lastCmuxSyncByTarget.set(key, { signature, timestamp: now });
+
+  return setCmuxStatus(key, value, {
     icon: style.icon,
     color: style.color
   }, config);
@@ -272,4 +285,3 @@ function formatCounts(counts) {
     .map(([key, value]) => `${key}=${value}`)
     .join(",");
 }
-

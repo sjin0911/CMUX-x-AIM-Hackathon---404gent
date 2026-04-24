@@ -91,3 +91,11 @@ Doctor checks:
 404gent --json audit summary
 404gent --json doctor
 ```
+
+## Benchmark
+
+```bash
+npm run bench
+```
+
+See `docs/PERFORMANCE.md` for buffering and throttling details.
