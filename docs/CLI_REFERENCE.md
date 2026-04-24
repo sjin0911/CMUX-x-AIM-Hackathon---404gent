@@ -52,6 +52,7 @@
 ```bash
 404gent audit summary
 404gent audit tail --limit 10
+404gent audit reset
 ```
 
 Audit logs are written as JSONL to `.404gent/events.jsonl` by default.
@@ -90,3 +91,11 @@ Doctor checks:
 404gent --json audit summary
 404gent --json doctor
 ```
+
+## Benchmark
+
+```bash
+npm run bench
+```
+
+See `docs/PERFORMANCE.md` for buffering and throttling details.

@@ -2,15 +2,15 @@
   "rules": {
     "disabled": [],
     "blockSeverities": ["critical", "high"],
-    "paths": ["examples/rules/hackathon-rules.json"],
+    "paths": [],
     "custom": [],
     "overrides": []
   },
   "llm": {
-    "enabled": false,
-    "provider": "gemini",
-    "model": "gemini-2.0-flash",
-    "timeoutMs": 7000,
+    "enabled": true,
+    "provider": "mock",
+    "model": "mock-security-reviewer",
+    "timeoutMs": 1000,
     "runOn": ["allow", "medium"],
     "maxInputChars": 8000,
     "maxFindings": 5,

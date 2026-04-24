@@ -7,10 +7,12 @@ import { analyzeEvent, mergeReports } from "./policy/engine.js";
 import { getRules, summarizeRules, validateRules } from "./policy/rules.js";
 import { analyzeWithLlm } from "./providers/llm.js";
 import { notifyCmux, setCmuxStatus } from "./integrations/cmux.js";
+import { createOutputMonitor } from "./output-monitor.js";
 import {
   formatAuditSummary,
   formatAuditTail,
   readAuditEvents,
+  resetAuditLog,
   summarizeAuditEvents
 } from "./audit.js";
 import { formatDoctor, runDoctor } from "./doctor.js";
@@ -24,9 +26,7 @@ import {
 } from "./state.js";
 import {
   appendAuditLog,
-  formatReport,
-  redactSecrets,
-  shouldRedactOutput
+  formatReport
 } from "./report.js";
 
 const EXIT = {
@@ -225,37 +225,22 @@ async function spawnAndMonitor(commandArgs, commandText, config, { source = "run
     return;
   }
 
+  const outputMonitor = createOutputMonitor(config, { source });
+
   child.stdout.on("data", (chunk) => {
-    handleOutputChunk(chunk, "stdout", config, source);
+    outputMonitor.write(chunk, "stdout");
   });
 
   child.stderr.on("data", (chunk) => {
-    handleOutputChunk(chunk, "stderr", config, source);
+    outputMonitor.write(chunk, "stderr");
   });
 
   const code = await new Promise((resolve) => {
     child.on("close", resolve);
   });
 
+  outputMonitor.flushAll();
   process.exitCode = code ?? process.exitCode ?? 1;
-}
-
-function handleOutputChunk(chunk, stream, config, source = "run") {
-  const text = chunk.toString("utf8");
-  const report = analyzeEvent(
-    { type: "output", text, source, meta: { stream } },
-    config
-  );
-
-  if (report.findings.length > 0) {
-    appendAuditLog(report, config);
-    updateStateFromReport(report, config);
-    notifyCmux(report, config);
-  }
-
-  const output = shouldRedactOutput(report, config) ? redactSecrets(text) : text;
-  const target = stream === "stdout" ? process.stdout : process.stderr;
-  target.write(output);
 }
 
 function handleRules(args, config, parsed) {
@@ -314,6 +299,12 @@ function handleAudit(args, config, parsed) {
   if (subcommand === "tail") {
     const events = readAuditEvents(config, { limit });
     printValue(events, formatAuditTail(events), parsed);
+    return;
+  }
+
+  if (subcommand === "reset") {
+    const result = resetAuditLog(config);
+    printValue(result, `Reset audit log at ${result.path}`, parsed);
     return;
   }
 
@@ -473,6 +464,7 @@ Usage:
   404gent rules validate
   404gent audit summary
   404gent audit tail [--limit 20]
+  404gent audit reset
   404gent status [--agent name]
   404gent status sync
   404gent status reset [--agent name]
