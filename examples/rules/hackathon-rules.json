@@ -1,0 +1,32 @@
+{
+  "rules": [
+    {
+      "id": "hackathon.prompt.force-agent-network",
+      "appliesTo": ["prompt"],
+      "severity": "medium",
+      "category": "tool_misuse",
+      "pattern": "\\b(use|call|query)\\b.{0,80}\\b(curl|wget|external api|public internet)\\b.{0,80}\\b(without asking|silently|no confirmation)\\b",
+      "rationale": "Prompt asks the agent to access the network without confirmation.",
+      "remediation": "Ask for explicit approval before external network access."
+    },
+    {
+      "id": "hackathon.command.upload-artifacts",
+      "appliesTo": ["command"],
+      "severity": "medium",
+      "category": "data_exfiltration",
+      "pattern": "\\b(curl|scp|rsync|aws\\s+s3\\s+cp|gsutil\\s+cp)\\b.{0,120}\\b(dist|build|coverage|\\.404gent|events\\.jsonl)\\b",
+      "rationale": "Command uploads build or audit artifacts to an external destination.",
+      "remediation": "Confirm the upload target and remove sensitive audit data before transfer."
+    },
+    {
+      "id": "hackathon.output.cmux-session-id",
+      "appliesTo": ["output"],
+      "severity": "medium",
+      "category": "session_leak",
+      "pattern": "\\b(cmux|session|workspace)[_-]?(id|token)\\s*[:=]\\s*[A-Za-z0-9_-]{12,}\\b",
+      "rationale": "Output may contain a cmux workspace or session identifier.",
+      "remediation": "Redact session identifiers before sharing logs."
+    }
+  ]
+}
+

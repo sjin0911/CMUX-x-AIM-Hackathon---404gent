@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+dist/
+.env
+.env.*
+!.env.example
+.404gent/events.jsonl
+.404gent/state.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

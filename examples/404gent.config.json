@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "disabled": [],
+    "blockSeverities": ["critical", "high"],
+    "paths": ["examples/rules/hackathon-rules.json"],
+    "custom": [],
+    "overrides": []
+  },
+  "llm": {
+    "enabled": false,
+    "provider": "gemini",
+    "model": "gemini-2.0-flash",
+    "timeoutMs": 7000,
+    "runOn": ["allow", "medium"],
+    "maxInputChars": 8000,
+    "maxFindings": 5,
+    "redactInputs": true
+  },
+  "cmux": {
+    "notify": true,
+    "status": true
+  },
+  "logging": {
+    "enabled": true,
+    "path": ".404gent/events.jsonl"
+  },
+  "state": {
+    "enabled": true,
+    "path": ".404gent/state.json"
+  }
+}
