@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "disabled": [],
+    "blockSeverities": ["critical", "high"],
+    "paths": [],
+    "custom": [],
+    "overrides": []
+  },
+  "llm": {
+    "enabled": true,
+    "provider": "mock",
+    "model": "mock-security-reviewer",
+    "timeoutMs": 1000,
+    "runOn": ["allow", "medium"],
+    "maxInputChars": 8000,
+    "maxFindings": 5,
+    "redactInputs": true
+  },
+  "cmux": {
+    "notify": true,
+    "status": true
+  },
+  "logging": {
+    "enabled": true,
+    "path": ".404gent/events.jsonl"
+  },
+  "state": {
+    "enabled": true,
+    "path": ".404gent/state.json"
+  }
+}

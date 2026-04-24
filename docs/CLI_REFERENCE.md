@@ -52,6 +52,7 @@
 ```bash
 404gent audit summary
 404gent audit tail --limit 10
+404gent audit reset
 ```
 
 Audit logs are written as JSONL to `.404gent/events.jsonl` by default.

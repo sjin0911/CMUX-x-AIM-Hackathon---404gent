@@ -6,6 +6,8 @@
 
 It cannot yet magically intercept every already-running process inside cmux without a hook, wrapper, or cmux terminal interception API.
 
+This is the right MVP boundary for the hackathon: cmux provides orchestration and visibility, while 404gent provides the runtime safety layer for connected agents.
+
 ## What Works Now
 
 | Path | Detects Prompt | Blocks Prompt | Detects Command | Blocks Command | Scans Output | cmux UI |

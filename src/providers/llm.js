@@ -52,7 +52,12 @@ export async function analyzeWithLlm(event, ruleReport, config = {}) {
     return { status: "skipped", reason: "severity_filter" };
   }
 
-  if ((llmConfig.provider ?? "gemini") !== "gemini") {
+  const provider = llmConfig.provider ?? "gemini";
+  if (provider === "mock") {
+    return analyzeWithMock(event, ruleReport, llmConfig);
+  }
+
+  if (provider !== "gemini") {
     return { status: "skipped", reason: "unsupported_provider" };
   }
 
@@ -106,6 +111,41 @@ export async function analyzeWithLlm(event, ruleReport, config = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function analyzeWithMock(event, ruleReport, llmConfig = {}) {
+  const text = String(event.text ?? "");
+  const findings = [];
+
+  if (/\b(hidden credentials|quietly inspect|report back|stealth|covert)\b/i.test(text)) {
+    findings.push({
+      id: "llm.mock.hidden_exfiltration_intent",
+      severity: "high",
+      category: "secret_exfiltration",
+      rationale: "Mock LLM review found covert credential discovery intent.",
+      remediation: "Refuse the request and suggest a scoped defensive secret audit.",
+      match: "hidden credentials"
+    });
+  }
+
+  if (/\b(ignore|override|bypass)\b.{0,80}\b(safety|guardrail|policy|monitor)\b/i.test(text)) {
+    findings.push({
+      id: "llm.mock.guardrail_bypass_intent",
+      severity: "high",
+      category: "guardrail_tampering",
+      rationale: "Mock LLM review found an attempt to bypass safety controls.",
+      remediation: "Keep the guard enabled and require human approval for policy changes.",
+      match: "bypass safety"
+    });
+  }
+
+  const maxFindings = llmConfig.maxFindings ?? 5;
+  return {
+    provider: "mock",
+    model: "mock-security-reviewer",
+    status: "ok",
+    findings: findings.slice(0, maxFindings)
+  };
 }
 
 export function shouldRunLlm(ruleReport, llmConfig) {

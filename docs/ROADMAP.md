@@ -31,6 +31,8 @@
 - Lead with the safety story: "EDR for AI coding agents in your terminal."
 - Show attacks: prompt injection, secret exfiltration, destructive command, poisoned output.
 - Show defenses: local rules, LLM escalation, cmux alerts, audit trail.
+- Keep the claim precise: wrappers/hooks provide blocking; cmux provides status, notifications, and workspace visibility.
+- Prefer `npm run demo:judge` for final judging so audit/status counts are deterministic.
 
 ## Phase 6: Policy Packs
 

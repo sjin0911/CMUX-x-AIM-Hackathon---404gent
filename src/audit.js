@@ -90,6 +90,15 @@ export function getAuditPath(config = {}) {
   return path.resolve(process.cwd(), config.logging?.path ?? ".404gent/events.jsonl");
 }
 
+export function resetAuditLog(config = {}) {
+  const logPath = getAuditPath(config);
+  if (fs.existsSync(logPath)) {
+    fs.rmSync(logPath);
+  }
+
+  return { path: logPath, reset: true };
+}
+
 function bump(target, key) {
   target[key] = (target[key] ?? 0) + 1;
 }
@@ -105,4 +114,3 @@ function formatCounts(counts, limit = 10) {
 
   return entries.map(([key, value]) => `${key}=${value}`).join(", ");
 }
-

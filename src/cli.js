@@ -11,6 +11,7 @@ import {
   formatAuditSummary,
   formatAuditTail,
   readAuditEvents,
+  resetAuditLog,
   summarizeAuditEvents
 } from "./audit.js";
 import { formatDoctor, runDoctor } from "./doctor.js";
@@ -317,6 +318,12 @@ function handleAudit(args, config, parsed) {
     return;
   }
 
+  if (subcommand === "reset") {
+    const result = resetAuditLog(config);
+    printValue(result, `Reset audit log at ${result.path}`, parsed);
+    return;
+  }
+
   throw new Error(`Unknown audit subcommand: ${subcommand}`);
 }
 
@@ -473,6 +480,7 @@ Usage:
   404gent rules validate
   404gent audit summary
   404gent audit tail [--limit 20]
+  404gent audit reset
   404gent status [--agent name]
   404gent status sync
   404gent status reset [--agent name]
