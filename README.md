@@ -40,6 +40,7 @@ npm run demo:reset
 npm test
 node src/cli.js doctor
 npm run demo:judge
+npm run tower
 ```
 
 `doctor`에서 Gemini가 꺼져 있어서 `WARN`이 나올 수 있습니다. 오프라인 데모에서는 정상입니다.
@@ -118,6 +119,7 @@ node src/cli.js status --agent safe-agent
 node src/cli.js status --agent prompt-agent
 node src/cli.js status --agent output-agent
 node src/cli.js status sync
+npm run tower
 ```
 
 기대 결과:
@@ -126,6 +128,13 @@ node src/cli.js status sync
 - `prompt-agent`: 한국어 prompt injection이 launch 전에 block되어 `CONTAMINATED`
 - `output-agent`: secret-looking output이 redaction되고 `CONTAMINATED`
 - `status sync`: cmux가 있으면 sidebar status로 현재 위험 상태를 밀어 넣음
+- `npm run tower`: 여러 agent/surface 상태를 관제 화면처럼 한 번에 표시
+
+cmux 한쪽 pane에 계속 띄워두고 싶으면:
+
+```bash
+node src/cli.js tower --watch
+```
 
 ### 6. Codex 프롬프트 가드 테스트
 
@@ -236,6 +245,8 @@ node src/cli.js status
 node src/cli.js status --agent demo
 node src/cli.js status sync
 node src/cli.js status reset --agent demo
+npm run tower
+node src/cli.js tower --watch
 ```
 
 룰 확인:
@@ -265,6 +276,7 @@ npm run bench
 404gent status [--agent name]
 404gent status sync
 404gent status reset [--agent name]
+404gent tower [--watch] [--interval 1000]
 404gent doctor
 ```
 

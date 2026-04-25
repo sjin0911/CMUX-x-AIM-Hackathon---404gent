@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  formatTower,
   formatStatus,
   readState,
   resetState,
@@ -68,6 +69,46 @@ test("resets status state", () => {
   assert.equal(state.targets["agent:gemini"], undefined);
 });
 
+test("formats control tower with recommended actions", () => {
+  const config = testConfig();
+
+  updateStateFromReport({
+    decision: "block",
+    event: {
+      type: "prompt",
+      source: "agent:prompt-agent:prompt"
+    },
+    findings: [
+      {
+        id: "prompt.ignore-instructions-ko",
+        severity: "high",
+        category: "prompt_injection",
+        rationale: "Korean prompt appears to override higher-priority instructions."
+      }
+    ]
+  }, config);
+
+  updateStateFromReport({
+    decision: "allow",
+    event: {
+      type: "command",
+      source: "agent:safe-agent:launch"
+    },
+    findings: []
+  }, config);
+
+  const output = formatTower(readState(config), {
+    now: new Date("2026-04-25T00:00:00.000Z")
+  });
+
+  assert.match(output, /404gent Control Tower/);
+  assert.match(output, /Workspace posture: .*CONTAMINATED/);
+  assert.match(output, /agent:prompt-agent/);
+  assert.match(output, /agent:safe-agent/);
+  assert.match(output, /Recommended actions:/);
+  assert.match(output, /Review contaminated targets/);
+});
+
 function testConfig() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "404gent-state-"));
   return {
@@ -80,4 +121,3 @@ function testConfig() {
     }
   };
 }
-

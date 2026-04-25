@@ -69,6 +69,18 @@ Audit logs are written as JSONL to `.404gent/events.jsonl` by default.
 
 Status is stored in `.404gent/state.json` and synced to cmux sidebar status entries when cmux is available.
 
+## Control Tower
+
+```bash
+404gent tower
+404gent tower --watch
+404gent tower --watch --interval 2000
+```
+
+`tower` renders a terminal control-tower view over all known agents, cmux surfaces, and local sessions. It shows workspace posture, per-target status, last decision, last event type, latest risk category, and recommended follow-up actions.
+
+Use `--watch` in a dedicated cmux pane to keep the view refreshed while other agents run.
+
 ## Doctor
 
 ```bash
