@@ -1,8 +1,8 @@
 # OS Guard Demo MVP
 
-OS Guard adds a fourth event surface for file and process behavior that would normally sit below shell wrappers. This branch implements the demo path only: simulated OS events flow through the same policy, audit, state, cmux, and quarantine pipeline as prompt, command, and output events.
+OS Guard adds a fourth event surface for file and process behavior that would normally sit below shell wrappers. Simulated OS events flow through the same policy, audit, state, cmux, and quarantine pipeline as prompt, command, and output events.
 
-Native follow-up work adds a Swift EndpointSecurity daemon in NOTIFY mode. It observes real `NOTIFY_OPEN` and `NOTIFY_EXEC` events, but still does not deny real `AUTH_OPEN` or `AUTH_EXEC` events.
+Native mode adds a Swift EndpointSecurity daemon that denies sensitive `AUTH_OPEN` file access locally and observes `NOTIFY_EXEC` process launches for audit. It does not deny `AUTH_EXEC` events.
 
 ## Commands
 
@@ -10,6 +10,7 @@ Native follow-up work adds a Swift EndpointSecurity daemon in NOTIFY mode. It ob
 node src/cli.js os-guard status
 node src/cli.js os-guard simulate-open .env --agent demo --pid 1234
 node src/cli.js os-guard simulate-exec curl https://example.com/upload -d @- --agent demo --pid 1234
+node src/cli.js os-guard register-existing --names codex,gemini
 node src/cli.js agent --name demo --with-os-guard -- node -e 'console.log("done")'
 node src/cli.js server
 npm run demo:os-guard
@@ -26,7 +27,7 @@ os exec argv="curl https://example.com/upload -d @-" pid=1234 agent=demo mode=si
 
 Reports keep metadata under `event.meta`, including `operation`, `path`, `argv`, `agent`, `pid`, and `mode`.
 
-## Native NOTIFY Mode
+## Native AUTH_OPEN + NOTIFY_EXEC Mode
 
 Start the Node policy server:
 
@@ -34,20 +35,43 @@ Start the Node policy server:
 node src/cli.js server
 ```
 
-Build and run the Swift daemon from `daemon/es-daemon` with the PID you want to watch:
+Build, sign, and run the Swift daemon from `daemon/es-daemon` with the PID you want to watch:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode-16.2.0.app/Contents/Developer swift build
+./scripts/sign.sh
 sudo FOURGENT_WATCH_PIDS=1234 .build/debug/es-daemon
 ```
 
-The daemon posts observed OS events to `http://127.0.0.1:7404/os-event` by default. Override the endpoint when needed:
+The daemon also opens a local control server on `127.0.0.1:7405` for runtime PID registration:
+
+```text
+POST http://127.0.0.1:7405/register-pid
+GET  http://127.0.0.1:7405/status
+```
+
+When `404gent agent --with-os-guard -- ...` launches a child process, the CLI registers that child PID with the daemon automatically. To register already-running agents by process name:
+
+```bash
+node src/cli.js os-guard register-existing --names codex,claude,gemini,opencode
+```
+
+For smoke tests only, watch every PID:
+
+```bash
+sudo FOURGENT_WATCH_ALL=true .build/debug/es-daemon
+```
+
+`FOURGENT_WATCH_ALL=true` is test-only. The default is `false`; use `FOURGENT_WATCH_PIDS` for normal demo runs.
+
+The daemon posts auth/audit OS events to `http://127.0.0.1:7404/os-event` by default. Override endpoints when needed:
 
 ```bash
 sudo FOURGENT_POLICY_ENDPOINT=http://127.0.0.1:7404 FOURGENT_WATCH_PIDS=1234 .build/debug/es-daemon
+FOURGENT_DAEMON_ENDPOINT=http://127.0.0.1:7405 node src/cli.js agent --name demo --with-os-guard -- node -e 'console.log("done")'
 ```
 
-When the watched process opens `.env` or executes a network tool like `curl`, 404gent evaluates the event with the existing OS rules and writes the result through audit/state/cmux.
+When the watched process opens `.env`, `.env.local`, `credentials.json`, `secrets.json`, or paths containing `/.ssh/`, `/.aws/`, or `/.gnupg/`, the daemon denies the open locally before best-effort Node reporting. `NOTIFY_EXEC` events such as `curl` launches are reported to 404gent for audit/state/cmux but are not blocked.
 
 ## Current Coverage
 
@@ -59,6 +83,6 @@ When the watched process opens `.env` or executes a network tool like `curl`, 40
 
 ## Native Follow-Up
 
-`src/integrations/os-guard.js` is the adapter boundary for native daemon events. Native NOTIFY mode is present; real blocking still needs `AUTH_OPEN`/`AUTH_EXEC`, entitlement, signing, and privileged deployment.
+`src/integrations/os-guard.js` is the adapter boundary for native daemon events. Native `AUTH_OPEN` blocking is present for sensitive file opens; `AUTH_EXEC`, uninstall packaging, and production signing remain follow-up work.
 
 The Swift daemon lives under `daemon/es-daemon/`. It creates an EndpointSecurity client when run on macOS with the required privileges and posts events to the local 404gent policy server.

@@ -39,11 +39,18 @@ export async function buildOsEvent(payload, config = {}) {
 
   if (payload.type === "open") {
     const targetPath = normalizeRequiredString(payload.path, "path");
-    return createOpenEvent(targetPath, {
+    const event = createOpenEvent(targetPath, {
       agent,
       pid,
       config: withNativeMode(config)
     });
+    event.meta = {
+      ...event.meta,
+      authDecision: normalizeOptionalString(payload.authDecision),
+      reason: normalizeOptionalString(payload.reason),
+      cache: typeof payload.cache === "boolean" ? payload.cache : null
+    };
+    return event;
   }
 
   if (payload.type === "exec") {

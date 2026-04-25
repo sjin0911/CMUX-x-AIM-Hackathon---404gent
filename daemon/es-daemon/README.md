@@ -1,10 +1,10 @@
 # 404gent ES Daemon
 
-Swift macOS EndpointSecurity daemon for 404gent OS Guard NOTIFY mode.
+Swift macOS EndpointSecurity daemon for 404gent OS Guard native mode.
 
 ## Current State
 
-The daemon subscribes to `NOTIFY_OPEN` and `NOTIFY_EXEC`, filters watched PIDs, and posts observed events to the local 404gent policy server. It does not subscribe to `AUTH_OPEN` or `AUTH_EXEC`, and it does not block real OS events.
+The daemon subscribes to `AUTH_OPEN` and `NOTIFY_EXEC`, filters watched PIDs, and posts events to the local 404gent policy server. `AUTH_OPEN` decisions are made locally in Swift so sensitive file opens can be denied before Node audit/cmux reporting. It does not subscribe to `AUTH_EXEC`.
 
 ## Build
 
@@ -24,6 +24,7 @@ If SwiftPM fails while compiling `Package.swift` or Foundation modules, reinstal
 ## Run
 
 ```bash
+./scripts/sign.sh
 sudo FOURGENT_WATCH_PIDS=1234 .build/debug/es-daemon
 ```
 
@@ -31,8 +32,9 @@ Expected output:
 
 ```text
 404gent ES Daemon starting...
-Mode: EndpointSecurity NOTIFY
+Mode: EndpointSecurity AUTH_OPEN + NOTIFY_EXEC
 Policy bridge: http://127.0.0.1:7404
+Daemon control: http://127.0.0.1:7405
 Ready. Press Ctrl+C to stop.
 ```
 
@@ -45,22 +47,56 @@ node src/cli.js server
 Environment variables:
 
 - `FOURGENT_POLICY_ENDPOINT`: policy server base URL, default `http://127.0.0.1:7404`
+- `FOURGENT_CONTROL_HOST`: daemon control bind host, default `127.0.0.1`
+- `FOURGENT_CONTROL_PORT`: daemon control bind port, default `7405`
 - `FOURGENT_WATCH_PIDS`: comma-separated PID allowlist, for example `1234,5678`
+- `FOURGENT_WATCH_ALL`: test-only full-system watch mode; default `false`
+
+For smoke tests only:
+
+```bash
+sudo FOURGENT_WATCH_ALL=true .build/debug/es-daemon
+```
+
+Use `FOURGENT_WATCH_PIDS` for normal demo runs. `FOURGENT_WATCH_ALL=true` is intentionally opt-in because `AUTH_OPEN` runs on hot system paths.
 
 ## Intended Integration
 
-The daemon observes EndpointSecurity file/process events and asks the 404gent policy layer for decisions over localhost HTTP.
+The daemon denies or allows `AUTH_OPEN` locally, then posts best-effort audit events to 404gent over localhost HTTP. `NOTIFY_EXEC` is observation-only.
+
+Port split:
+
+```text
+7404: Node policy server, receives OS event reports with POST /os-event
+7405: Swift daemon control server, receives PID registrations
+```
+
+Daemon control endpoints:
+
+```text
+POST http://127.0.0.1:7405/register-pid
+GET  http://127.0.0.1:7405/status
+```
+
+`404gent agent --with-os-guard -- ...` registers its spawned child PID automatically. The CLI can also register already-running agents:
+
+```bash
+node src/cli.js os-guard register-existing --names codex,claude,gemini,opencode
+```
 
 ```text
 POST http://127.0.0.1:7404/os-event
 {
   "type": "open",
   "path": ".env",
-  "pid": 1234
+  "pid": 1234,
+  "authDecision": "deny",
+  "reason": "sensitive file: .env",
+  "cache": false
 }
 ```
 
-The policy service should respond with a decision such as:
+The policy service responds with a reporting decision such as:
 
 ```json
 {
@@ -74,4 +110,6 @@ The policy service should respond with a decision such as:
 1. Done: directory structure and buildable skeleton.
 2. Done: local 404gent HTTP policy endpoint.
 3. Done: EndpointSecurity notify-mode observation.
-4. Later: `AUTH_OPEN` and `AUTH_EXEC` denial with entitlement, signing, and privileged execution.
+4. Done: `AUTH_OPEN` sensitive-file denial with ad-hoc signing support.
+5. Done: daemon control server and runtime PID registration.
+6. Later: `AUTH_EXEC` denial, production signing, packaging, and privileged deployment.

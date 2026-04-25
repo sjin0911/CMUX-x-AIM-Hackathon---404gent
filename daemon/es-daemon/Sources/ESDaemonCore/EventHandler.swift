@@ -1,7 +1,7 @@
 import Foundation
 
 public enum OSEvent: Equatable, Codable, Sendable {
-    case open(pid: pid_t, path: String)
+    case open(pid: pid_t, path: String, auth: AuthEventMetadata? = nil)
     case exec(pid: pid_t, argv: [String])
 
     private enum CodingKeys: String, CodingKey {
@@ -9,6 +9,9 @@ public enum OSEvent: Equatable, Codable, Sendable {
         case path
         case pid
         case argv
+        case authDecision
+        case reason
+        case cache
     }
 
     public init(from decoder: Decoder) throws {
@@ -20,7 +23,12 @@ public enum OSEvent: Equatable, Codable, Sendable {
         case "open":
             self = .open(
                 pid: pid,
-                path: try container.decode(String.self, forKey: .path)
+                path: try container.decode(String.self, forKey: .path),
+                auth: AuthEventMetadata(
+                    decision: try container.decodeIfPresent(String.self, forKey: .authDecision),
+                    reason: try container.decodeIfPresent(String.self, forKey: .reason),
+                    cache: try container.decodeIfPresent(Bool.self, forKey: .cache)
+                )
             )
         case "exec":
             self = .exec(
@@ -40,15 +48,30 @@ public enum OSEvent: Equatable, Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
-        case let .open(pid, path):
+        case let .open(pid, path, auth):
             try container.encode("open", forKey: .type)
             try container.encode(path, forKey: .path)
             try container.encode(pid, forKey: .pid)
+            try container.encodeIfPresent(auth?.decision, forKey: .authDecision)
+            try container.encodeIfPresent(auth?.reason, forKey: .reason)
+            try container.encodeIfPresent(auth?.cache, forKey: .cache)
         case let .exec(pid, argv):
             try container.encode("exec", forKey: .type)
             try container.encode(argv, forKey: .argv)
             try container.encode(pid, forKey: .pid)
         }
+    }
+}
+
+public struct AuthEventMetadata: Equatable, Sendable {
+    public let decision: String?
+    public let reason: String?
+    public let cache: Bool?
+
+    public init(decision: String?, reason: String?, cache: Bool?) {
+        self.decision = decision
+        self.reason = reason
+        self.cache = cache
     }
 }
 
@@ -60,7 +83,7 @@ public final class EventHandler: @unchecked Sendable {
     }
 
     @discardableResult
-    public func handle(_ event: OSEvent) async -> PolicyDecision {
+    public func send(_ event: OSEvent) async -> PolicyDecision {
         let decision = await policyBridge.evaluate(event)
         print("[EventHandler] \(event.summary) -> \(decision.decision)")
         return decision
@@ -70,7 +93,7 @@ public final class EventHandler: @unchecked Sendable {
 public extension OSEvent {
     var summary: String {
         switch self {
-        case let .open(pid, path):
+        case let .open(pid, path, _):
             return "open pid=\(pid) path=\(path)"
         case let .exec(pid, argv):
             return "exec pid=\(pid) argv=\(argv.joined(separator: " "))"

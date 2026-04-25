@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import process from "node:process";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { loadConfig } from "./config.js";
 import { guard, recordReport } from "./guard.js";
 import { getRules, summarizeRules, validateRules } from "./policy/rules.js";
@@ -23,6 +23,7 @@ import {
   formatOsGuardStatus,
   getOsGuardStatus
 } from "./integrations/os-guard.js";
+import { registerOsGuardPID } from "./integrations/es-daemon.js";
 import { createOutputMonitor } from "./output-monitor.js";
 import {
   formatAuditSummary,
@@ -226,7 +227,10 @@ async function runGuardedAgent(args, config, parsed) {
 
   setCmuxStatus(`404gent:agent:${name}`, "running guarded", { icon: "shield", color: "#34c759" }, config);
   setCmuxProgress(0.2, `404gent guarding ${name}`, config);
-  await spawnAndMonitor(commandArgs, commandText, config, { source: `agent:${name}:output` });
+  await spawnAndMonitor(commandArgs, commandText, config, {
+    source: `agent:${name}:output`,
+    osGuardRegistration: withOsGuard ? { agent: name } : null
+  });
   clearCmuxProgress(config);
   const state = readState(config);
   const target = state.targets?.[`agent:${name}`];
@@ -243,7 +247,7 @@ async function runGuardedAgent(args, config, parsed) {
   );
 }
 
-async function spawnAndMonitor(commandArgs, commandText, config, { source = "run" } = {}) {
+async function spawnAndMonitor(commandArgs, commandText, config, { source = "run", osGuardRegistration = null } = {}) {
   const hasArgv = commandArgs.length > 1;
   const child = hasArgv
     ? spawn(commandArgs[0], commandArgs.slice(1), {
@@ -258,6 +262,16 @@ async function spawnAndMonitor(commandArgs, commandText, config, { source = "run
     console.error(`404gent run error: ${error.message}`);
     process.exitCode = 1;
   });
+
+  if (osGuardRegistration && child.pid) {
+    registerOsGuardPID({
+      pid: child.pid,
+      agent: osGuardRegistration.agent,
+      config
+    }).catch((error) => {
+      console.error(`404gent OS Guard PID registration warning: ${error.message}`);
+    });
+  }
 
   if (!child.stdout || !child.stderr) {
     return;
@@ -424,7 +438,51 @@ async function handleOsGuard(args, config, parsed) {
     return;
   }
 
+  if (subcommand === "register-existing") {
+    const names = (valueFlag(rest, "--names") ?? "codex,claude,gemini,opencode")
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean);
+    const results = [];
+
+    for (const name of names) {
+      for (const pid of findPidsByProcessName(name)) {
+        try {
+          await registerOsGuardPID({ pid, agent: name, config });
+          results.push({ agent: name, pid, status: "registered" });
+        } catch (error) {
+          results.push({ agent: name, pid, status: "failed", error: error.message });
+        }
+      }
+    }
+
+    printValue(results, formatPidRegistrationResults(results), parsed);
+    return;
+  }
+
   throw new Error(`Unknown os-guard subcommand: ${subcommand}`);
+}
+
+function findPidsByProcessName(name) {
+  const exact = spawnSync("pgrep", ["-x", name], { encoding: "utf8" });
+  const output = exact.status === 0 ? exact.stdout : "";
+  return output
+    .split(/\s+/)
+    .map((pid) => Number(pid))
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+function formatPidRegistrationResults(results) {
+  if (results.length === 0) {
+    return "No matching agent processes found.";
+  }
+
+  return results.map((result) => {
+    const suffix = result.status === "registered"
+      ? "registered"
+      : `failed: ${result.error}`;
+    return `${result.agent} pid=${result.pid} ${suffix}`;
+  }).join("\n");
 }
 
 async function handleCmuxWatch(args, config, parsed) {
@@ -700,6 +758,7 @@ Usage:
   404gent os-guard status
   404gent os-guard simulate-open <path> [--agent name] [--pid pid]
   404gent os-guard simulate-exec <command...> [--agent name] [--pid pid]
+  404gent os-guard register-existing [--names codex,claude,gemini,opencode]
   404gent cmux-watch [--surface id] [--lines n] [--once] [--interrupt]
   404gent rules list [--type prompt|command|output|os] [--category name]
   404gent rules summary
@@ -726,6 +785,7 @@ Examples:
   404gent server
   404gent os-guard simulate-open .env --agent codex --pid 1234
   404gent os-guard simulate-exec curl https://example.com -d @- --agent codex
+  404gent os-guard register-existing --names codex,gemini
   404gent cmux-watch --surface surface:2 --lines 200 --interrupt
   404gent status --agent codex
   404gent tower --watch

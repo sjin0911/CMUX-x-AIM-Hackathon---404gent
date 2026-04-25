@@ -8,19 +8,32 @@ struct ESDaemon {
         let config = DaemonConfig.fromEnvironment()
         let bridge = PolicyBridge(config: config)
         let handler = EventHandler(policyBridge: bridge)
-        let client = ESClient(watchedPIDs: config.watchedPIDs, eventHandler: handler)
+        let client = ESClient(
+            watchedPIDs: config.watchedPIDs,
+            watchAll: config.watchAll,
+            eventHandler: handler
+        )
+        let controlServer = DaemonControlServer(
+            host: config.controlHost,
+            port: config.controlPort,
+            registry: client
+        )
 
         print("404gent ES Daemon starting...")
-        print("Mode: EndpointSecurity NOTIFY")
+        print("Mode: EndpointSecurity AUTH_OPEN + NOTIFY_EXEC")
         print("Policy bridge: \(config.policyEndpoint)")
-        if config.watchedPIDs.isEmpty {
+        print("Daemon control: http://\(config.controlHost):\(config.controlPort)")
+        if config.watchAll {
             print("Watching all PIDs")
+        } else if config.watchedPIDs.isEmpty {
+            print("Watching no PIDs; set FOURGENT_WATCH_PIDS or test with FOURGENT_WATCH_ALL=true")
         } else {
             print("Watching PIDs: \(config.watchedPIDs.sorted().map(String.init).joined(separator: ","))")
         }
 
         do {
             try client.start()
+            try controlServer.start()
         } catch {
             print("Failed to start ES client: \(error.localizedDescription)")
             exit(1)

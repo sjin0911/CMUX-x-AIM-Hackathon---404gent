@@ -4,7 +4,7 @@ import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { startServer } from "../src/server.js";
+import { buildOsEvent, startServer } from "../src/server.js";
 import { defaultConfig } from "../src/config.js";
 
 test("policy server blocks sensitive OS open events", async () => {
@@ -61,6 +61,21 @@ test("policy server rejects invalid OS events", async () => {
   } finally {
     server.close();
   }
+});
+
+test("policy server preserves native auth metadata on OS open events", async () => {
+  const event = await buildOsEvent({
+    type: "open",
+    path: "/tmp/readme.txt",
+    pid: 1234,
+    authDecision: "allow",
+    reason: "ordinary file",
+    cache: true
+  }, testConfig());
+
+  assert.equal(event.meta.authDecision, "allow");
+  assert.equal(event.meta.reason, "ordinary file");
+  assert.equal(event.meta.cache, true);
 });
 
 async function postJson(server, payload) {

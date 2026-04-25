@@ -43,6 +43,7 @@ export const defaultConfig = {
   osGuard: {
     enabled: true,
     mode: "simulate",
+    daemonEndpoint: process.env.FOURGENT_DAEMON_ENDPOINT || "http://127.0.0.1:7405",
     sensitivePaths: [
       ".env",
       ".env.*",
