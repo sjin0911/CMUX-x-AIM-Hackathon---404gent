@@ -36,3 +36,5 @@ Reports keep metadata under `event.meta`, including `operation`, `path`, `argv`,
 ## Native Follow-Up
 
 `src/integrations/os-guard.js` is the adapter boundary for a later native daemon. A real macOS EndpointSecurity implementation still needs entitlement, signing, privileged execution, PID subscription, and IPC back into this CLI.
+
+The Swift skeleton lives under `daemon/es-daemon/`. It is intentionally in skeleton mode: it models the daemon structure, event handling, and policy bridge, but it does not create a real EndpointSecurity client yet.

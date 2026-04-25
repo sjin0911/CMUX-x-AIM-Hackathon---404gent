@@ -396,6 +396,8 @@ docs/OS_GUARD.md                   simulated OS Guard demo guide
 docs/STATUS_MODEL.md               agent/surface risk status model
 docs/GEMINI_LLM.md                 Gemini review details
 
+daemon/es-daemon/                  Swift EndpointSecurity daemon skeleton
+
 examples/404gent.cmux-native.config.json cmux-native demo config
 examples/404gent.config.json             custom rule config
 examples/404gent.mock-llm.config.json    mock LLM demo config
