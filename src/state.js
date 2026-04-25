@@ -17,6 +17,13 @@ const STATUS_STYLE = {
   contaminated: { label: "contaminated", icon: "shield-x", color: "#bf5af2" }
 };
 
+const STATUS_LABEL = {
+  clean: "OK",
+  warning: "WARN",
+  danger: "DANGER",
+  contaminated: "CONTAMINATED"
+};
+
 const CONTAMINATION_CATEGORIES = new Set([
   "prompt_injection",
   "guardrail_tampering",
@@ -126,6 +133,57 @@ export function formatStatus(state, { targetId } = {}) {
       `last=${finding}`
     ].join(" | ");
   }).join("\n");
+}
+
+export function formatTower(state, { now = new Date() } = {}) {
+  const targets = selectTargets(state);
+  const posture = workspacePosture(targets);
+  const lines = [];
+
+  lines.push("404gent Control Tower");
+  lines.push(`Workspace posture: ${statusIcon(posture)} ${STATUS_LABEL[posture] ?? posture.toUpperCase()}`);
+  lines.push(`Last update: ${state.updatedAt ?? "never"} | Rendered: ${now.toISOString()}`);
+  lines.push("");
+
+  if (targets.length === 0) {
+    lines.push("No guarded agents or cmux surfaces yet.");
+    lines.push("");
+    lines.push("Try:");
+    lines.push("  npm run demo:agents");
+    lines.push("  node src/cli.js agent --name demo --prompt \"Summarize README\" -- node -e 'console.log(\"done\")'");
+    return lines.join("\n");
+  }
+
+  const rows = targets.map((target) => {
+    const finding = target.lastFinding;
+    return {
+      target: shortTarget(target),
+      status: `${statusIcon(target.status)} ${STATUS_LABEL[target.status] ?? target.status.toUpperCase()}`,
+      decision: target.lastDecision ?? "unknown",
+      event: target.lastEventType ?? "unknown",
+      reason: finding ? finding.category : "no findings",
+      updated: relativeTime(target.updatedAt, now)
+    };
+  });
+
+  lines.push(formatTable([
+    ["Target", "Status", "Decision", "Event", "Reason", "Updated"],
+    ...rows.map((row) => [
+      row.target,
+      row.status,
+      row.decision,
+      row.event,
+      row.reason,
+      row.updated
+    ])
+  ]));
+  lines.push("");
+  lines.push("Recommended actions:");
+  for (const action of recommendedActions(targets, posture)) {
+    lines.push(`- ${action}`);
+  }
+
+  return lines.join("\n");
 }
 
 export function syncStateToCmux(state, config = {}) {
@@ -255,6 +313,116 @@ function selectTargets(state, targetId) {
     return STATUS_RANK[b.status] - STATUS_RANK[a.status]
       || String(a.id).localeCompare(String(b.id));
   });
+}
+
+function workspacePosture(targets) {
+  return targets.reduce((highest, target) => {
+    return higherStatus(highest, target.status ?? "clean");
+  }, "clean");
+}
+
+function statusIcon(status) {
+  return {
+    clean: "✅",
+    warning: "⚠️",
+    danger: "🛑",
+    contaminated: "🔴"
+  }[status] ?? "•";
+}
+
+function shortTarget(target) {
+  if (target.kind === "agent") {
+    return `agent:${target.name}`;
+  }
+
+  if (target.kind === "surface" && target.name) {
+    return `surface:${String(target.name).slice(0, 8)}`;
+  }
+
+  if (target.kind === "workspace" && target.name) {
+    return `workspace:${String(target.name).slice(0, 8)}`;
+  }
+
+  return target.id ?? target.name ?? "unknown";
+}
+
+function formatTable(rows) {
+  const widths = rows[0].map((_, column) => {
+    return Math.max(...rows.map((row) => stripAnsi(String(row[column] ?? "")).length));
+  });
+
+  return rows.map((row, index) => {
+    const line = row.map((cell, column) => padCell(String(cell ?? ""), widths[column])).join("  ");
+    if (index === 0) {
+      return `${line}\n${widths.map((width) => "-".repeat(width)).join("  ")}`;
+    }
+    return line;
+  }).join("\n");
+}
+
+function padCell(value, width) {
+  return `${value}${" ".repeat(Math.max(0, width - stripAnsi(value).length))}`;
+}
+
+function stripAnsi(value) {
+  return value.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
+function relativeTime(value, now) {
+  if (!value) {
+    return "never";
+  }
+
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return "unknown";
+  }
+
+  const seconds = Math.max(0, Math.round((now.getTime() - timestamp) / 1000));
+  if (seconds < 60) {
+    return `${seconds}s ago`;
+  }
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.round(minutes / 60);
+  return `${hours}h ago`;
+}
+
+function recommendedActions(targets, posture) {
+  if (targets.length === 0) {
+    return ["Start a guarded agent or run a demo to populate the control tower."];
+  }
+
+  const contaminated = targets.filter((target) => target.status === "contaminated");
+  const danger = targets.filter((target) => target.status === "danger");
+  const warning = targets.filter((target) => target.status === "warning");
+  const actions = [];
+
+  if (contaminated.length > 0) {
+    actions.push(`Review contaminated targets before reuse: ${contaminated.map(shortTarget).join(", ")}.`);
+    actions.push("Avoid handoffs from contaminated agents to deploy, git, cloud, or secret-handling agents.");
+  }
+
+  if (danger.length > 0) {
+    actions.push(`Inspect blocked actions for: ${danger.map(shortTarget).join(", ")}.`);
+  }
+
+  if (warning.length > 0) {
+    actions.push(`Confirm authorization for warning targets: ${warning.map(shortTarget).join(", ")}.`);
+  }
+
+  if (posture === "clean") {
+    actions.push("Workspace is clean. Continue using guarded wrappers for new agent work.");
+  }
+
+  actions.push("Use `node src/cli.js audit tail --limit 10` for the latest evidence.");
+  actions.push("Reset a reviewed target with `node src/cli.js status reset --agent <name>`.");
+
+  return actions;
 }
 
 function syncTargetToCmux(target, config, { force = false } = {}) {

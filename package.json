@@ -15,6 +15,7 @@
     "demo:cmux": "bash scripts/cmux-demo.sh",
     "demo:cmux-native": "bash scripts/cmux-native-demo.sh",
     "demo:agents": "bash scripts/cmux-agent-demo.sh",
+    "tower": "node src/cli.js tower",
     "bench": "node scripts/benchmark.js"
   },
   "engines": {

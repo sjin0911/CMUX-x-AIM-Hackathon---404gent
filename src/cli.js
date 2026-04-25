@@ -25,6 +25,7 @@ import {
 import { formatDoctor, runDoctor } from "./doctor.js";
 import {
   formatStatus,
+  formatTower,
   readState,
   resetState,
   resolveTargetId,
@@ -107,6 +108,11 @@ async function main(argv) {
 
   if (command === "status") {
     handleStatus(args, config, parsed);
+    return;
+  }
+
+  if (command === "tower") {
+    await handleTower(args, config, parsed);
     return;
   }
 
@@ -364,6 +370,37 @@ function handleStatus(args, config, parsed) {
   printValue(state, formatStatus(state, { targetId }), parsed);
 }
 
+async function handleTower(args, config, parsed) {
+  const watch = args.includes("--watch");
+  const intervalMs = Number(valueFlag(args, "--interval") ?? 1000);
+
+  if (parsed.json) {
+    const state = readState(config);
+    printValue(state, formatTower(state), parsed);
+    return;
+  }
+
+  if (!watch) {
+    const state = readState(config);
+    console.log(formatTower(state));
+    return;
+  }
+
+  process.on("SIGINT", () => {
+    process.stdout.write("\n");
+    process.exit(0);
+  });
+
+  while (true) {
+    const state = readState(config);
+    process.stdout.write("\x1Bc");
+    console.log(formatTower(state));
+    console.log("");
+    console.log(`Watching every ${intervalMs}ms. Press Ctrl+C to exit.`);
+    await sleep(intervalMs);
+  }
+}
+
 function printValue(value, text, parsed) {
   console.log(parsed.json ? JSON.stringify(value, null, 2) : text);
 }
@@ -468,6 +505,10 @@ function valueFlag(args, flag) {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function helpText() {
   return `404gent - guardrails for terminal AI agents
 
@@ -487,6 +528,7 @@ Usage:
   404gent status [--agent name]
   404gent status sync
   404gent status reset [--agent name]
+  404gent tower [--watch] [--interval 1000]
   404gent doctor
 
 Global flags:
@@ -500,5 +542,6 @@ Examples:
   404gent run -- npm test
   404gent agent --name codex --prompt "Summarize README" -- codex
   404gent status --agent codex
+  404gent tower --watch
 `;
 }
