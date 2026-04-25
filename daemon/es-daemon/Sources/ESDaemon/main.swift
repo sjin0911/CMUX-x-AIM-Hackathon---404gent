@@ -1,20 +1,30 @@
 import ESDaemonCore
+import Dispatch
 import Foundation
 
 @main
 struct ESDaemon {
-    static func main() {
+    static func main() async {
         let config = DaemonConfig.fromEnvironment()
-        let client = ESClient()
         let bridge = PolicyBridge(config: config)
         let handler = EventHandler(policyBridge: bridge)
+        let client = ESClient(watchedPIDs: config.watchedPIDs, eventHandler: handler)
 
         print("404gent ES Daemon starting...")
-        print("Mode: skeleton (no real ES hooks)")
+        print("Mode: EndpointSecurity NOTIFY")
         print("Policy bridge: \(config.policyEndpoint)")
+        if config.watchedPIDs.isEmpty {
+            print("Watching all PIDs")
+        } else {
+            print("Watching PIDs: \(config.watchedPIDs.sorted().map(String.init).joined(separator: ","))")
+        }
 
-        client.start()
-        handler.handle(.exec(pid: Int32(ProcessInfo.processInfo.processIdentifier), argv: ["es-daemon", "--skeleton"]))
+        do {
+            try client.start()
+        } catch {
+            print("Failed to start ES client: \(error.localizedDescription)")
+            exit(1)
+        }
 
         signal(SIGINT) { _ in
             print("\nShutting down...")
@@ -22,6 +32,6 @@ struct ESDaemon {
         }
 
         print("Ready. Press Ctrl+C to stop.")
-        RunLoop.main.run()
+        dispatchMain()
     }
 }

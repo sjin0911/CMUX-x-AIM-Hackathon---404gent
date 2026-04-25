@@ -3,14 +3,10 @@ import fs from "node:fs";
 import process from "node:process";
 import { spawn } from "node:child_process";
 import { loadConfig } from "./config.js";
-import { analyzeEvent, mergeReports } from "./policy/engine.js";
+import { guard, recordReport } from "./guard.js";
 import { getRules, summarizeRules, validateRules } from "./policy/rules.js";
-import { analyzeWithLlm } from "./providers/llm.js";
 import {
   clearCmuxProgress,
-  logCmuxReport,
-  notifyCmux,
-  openCmuxQuarantinePane,
   readCmuxScreen,
   sendCmuxKey,
   setCmuxProgress,
@@ -43,12 +39,8 @@ import {
   resetState,
   resolveTargetId,
   syncStateToCmux,
-  updateStateFromReport
 } from "./state.js";
-import {
-  appendAuditLog,
-  formatReport
-} from "./report.js";
+import { formatReport } from "./report.js";
 
 const EXIT = {
   allow: 0,
@@ -104,6 +96,13 @@ async function main(argv) {
     return;
   }
 
+  if (command === "server") {
+    const { startServer } = await import("./server.js");
+    startServer({ config });
+    console.log("Press Ctrl+C to stop");
+    return;
+  }
+
   if (command === "rules") {
     handleRules(args, config, parsed);
     return;
@@ -144,28 +143,10 @@ async function main(argv) {
   process.exitCode = EXIT.usage;
 }
 
-async function guard(event, config) {
-  const ruleReport = analyzeEvent(event, config);
-  const llmReport = await analyzeWithLlm(event, ruleReport, config);
-  return mergeReports(ruleReport, llmReport, config);
-}
-
 function finish(report, config, parsed) {
-  appendAuditLog(report, config);
-  updateStateFromReport(report, config);
-  notifyCmux(report, config);
-  logCmuxReport(report, config);
-  openCmuxQuarantinePane(report, config);
+  recordReport(report, config);
   console.log(formatReport(report, { json: parsed.json }));
   process.exitCode = EXIT[report.decision] ?? 1;
-}
-
-function recordReport(report, config) {
-  appendAuditLog(report, config);
-  updateStateFromReport(report, config);
-  notifyCmux(report, config);
-  logCmuxReport(report, config);
-  openCmuxQuarantinePane(report, config);
 }
 
 async function runGuardedCommand(args, config, parsed) {
@@ -176,11 +157,7 @@ async function runGuardedCommand(args, config, parsed) {
     config
   );
 
-  appendAuditLog(commandReport, config);
-  updateStateFromReport(commandReport, config);
-  notifyCmux(commandReport, config);
-  logCmuxReport(commandReport, config);
-  openCmuxQuarantinePane(commandReport, config);
+  recordReport(commandReport, config);
   console.error(formatReport(commandReport, { json: parsed.json }));
 
   if (commandReport.decision === "block") {
@@ -211,11 +188,7 @@ async function runGuardedAgent(args, config, parsed) {
       { type: "prompt", text: prompt, source: `agent:${name}:prompt` },
       config
     );
-    appendAuditLog(promptReport, config);
-    updateStateFromReport(promptReport, config);
-    notifyCmux(promptReport, config);
-    logCmuxReport(promptReport, config);
-    openCmuxQuarantinePane(promptReport, config);
+    recordReport(promptReport, config);
     console.error(formatReport(promptReport, { json: parsed.json }));
 
     if (promptReport.decision === "block") {
@@ -242,11 +215,7 @@ async function runGuardedAgent(args, config, parsed) {
     config
   );
 
-  appendAuditLog(commandReport, config);
-  updateStateFromReport(commandReport, config);
-  notifyCmux(commandReport, config);
-  logCmuxReport(commandReport, config);
-  openCmuxQuarantinePane(commandReport, config);
+  recordReport(commandReport, config);
   console.error(formatReport(commandReport, { json: parsed.json }));
 
   if (commandReport.decision === "block") {
@@ -727,6 +696,7 @@ Usage:
   404gent scan-output <text>
   404gent run -- <command>
   404gent agent --name <name> [--prompt <text>] [--with-os-guard] -- <agent command>
+  404gent server
   404gent os-guard status
   404gent os-guard simulate-open <path> [--agent name] [--pid pid]
   404gent os-guard simulate-exec <command...> [--agent name] [--pid pid]
@@ -753,6 +723,7 @@ Examples:
   404gent scan-output "OPENAI_API_KEY=sk-..."
   404gent run -- npm test
   404gent agent --name codex --prompt "Summarize README" --with-os-guard -- codex
+  404gent server
   404gent os-guard simulate-open .env --agent codex --pid 1234
   404gent os-guard simulate-exec curl https://example.com -d @- --agent codex
   404gent cmux-watch --surface surface:2 --lines 200 --interrupt

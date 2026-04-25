@@ -1,10 +1,10 @@
 # 404gent ES Daemon
 
-Swift skeleton for a future macOS EndpointSecurity daemon.
+Swift macOS EndpointSecurity daemon for 404gent OS Guard NOTIFY mode.
 
 ## Current State
 
-Skeleton mode only. This package does not create an EndpointSecurity client, does not subscribe to `AUTH_OPEN` or `AUTH_EXEC`, and does not block real OS events.
+The daemon subscribes to `NOTIFY_OPEN` and `NOTIFY_EXEC`, filters watched PIDs, and posts observed events to the local 404gent policy server. It does not subscribe to `AUTH_OPEN` or `AUTH_EXEC`, and it does not block real OS events.
 
 ## Build
 
@@ -24,21 +24,32 @@ If SwiftPM fails while compiling `Package.swift` or Foundation modules, reinstal
 ## Run
 
 ```bash
-.build/debug/es-daemon
+sudo FOURGENT_WATCH_PIDS=1234 .build/debug/es-daemon
 ```
 
 Expected output:
 
 ```text
 404gent ES Daemon starting...
-Mode: skeleton (no real ES hooks)
+Mode: EndpointSecurity NOTIFY
 Policy bridge: http://127.0.0.1:7404
 Ready. Press Ctrl+C to stop.
 ```
 
+Start the Node policy server first from the repo root:
+
+```bash
+node src/cli.js server
+```
+
+Environment variables:
+
+- `FOURGENT_POLICY_ENDPOINT`: policy server base URL, default `http://127.0.0.1:7404`
+- `FOURGENT_WATCH_PIDS`: comma-separated PID allowlist, for example `1234,5678`
+
 ## Intended Integration
 
-The daemon will eventually observe EndpointSecurity file/process events and ask the 404gent policy layer for decisions over localhost HTTP.
+The daemon observes EndpointSecurity file/process events and asks the 404gent policy layer for decisions over localhost HTTP.
 
 ```text
 POST http://127.0.0.1:7404/os-event
@@ -61,6 +72,6 @@ The policy service should respond with a decision such as:
 ## Roadmap
 
 1. Done: directory structure and buildable skeleton.
-2. Next: local 404gent HTTP policy endpoint.
-3. Next: EndpointSecurity notify-mode observation.
+2. Done: local 404gent HTTP policy endpoint.
+3. Done: EndpointSecurity notify-mode observation.
 4. Later: `AUTH_OPEN` and `AUTH_EXEC` denial with entitlement, signing, and privileged execution.

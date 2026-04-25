@@ -18,7 +18,11 @@ let package = Package(
         .target(
             name: "ESDaemonCore",
             dependencies: [],
-            path: "Sources/ESDaemonCore"
+            path: "Sources/ESDaemonCore",
+            linkerSettings: [
+                .linkedLibrary("EndpointSecurity"),
+                .linkedLibrary("bsm")
+            ]
         ),
         .testTarget(
             name: "ESDaemonCoreTests",

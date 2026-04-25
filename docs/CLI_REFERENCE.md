@@ -40,6 +40,14 @@
 
 `--with-os-guard` records simulated OS Guard coverage for the agent. It does not attach native macOS EndpointSecurity hooks.
 
+## Policy Server
+
+```bash
+404gent server
+```
+
+`server` starts the local policy endpoint used by the native Swift ES daemon. It listens on `127.0.0.1:7404` by default and accepts `POST /os-event`.
+
 ## OS Guard
 
 ```bash
