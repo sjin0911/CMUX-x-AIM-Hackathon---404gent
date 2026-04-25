@@ -1,0 +1,29 @@
+{
+  "osGuard": {
+    "enabled": true,
+    "mode": "simulate",
+    "sensitivePaths": [
+      ".env",
+      ".env.*",
+      "id_rsa",
+      "id_ed25519",
+      ".npmrc",
+      ".pypirc",
+      ".netrc",
+      ".kube/config",
+      "credentials",
+      "credentials.json",
+      "secrets.json",
+      "service-account"
+    ],
+    "blockExecutables": ["rm", "dd", "mkfs", "diskutil"],
+    "warnExecutables": ["curl", "wget", "nc", "ncat", "netcat", "scp", "rsync", "nmap"]
+  },
+  "cmux": {
+    "notify": true,
+    "status": true,
+    "log": true,
+    "progress": true,
+    "quarantinePane": true
+  }
+}

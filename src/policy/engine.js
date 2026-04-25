@@ -86,7 +86,7 @@ function normalizeEvent(event) {
     throw new TypeError("Event must be an object.");
   }
 
-  if (!["prompt", "command", "output"].includes(event.type)) {
+  if (!["prompt", "command", "output", "os"].includes(event.type)) {
     throw new TypeError(`Unsupported event type: ${event.type}`);
   }
 

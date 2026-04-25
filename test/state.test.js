@@ -69,6 +69,30 @@ test("resets status state", () => {
   assert.equal(state.targets["agent:gemini"], undefined);
 });
 
+test("updates agent state from simulated OS events", () => {
+  const config = testConfig();
+
+  updateStateFromReport({
+    decision: "block",
+    event: {
+      type: "os",
+      source: "agent:os-demo:os"
+    },
+    findings: [
+      {
+        id: "os.sensitive-file-open",
+        severity: "high",
+        category: "secret_discovery",
+        rationale: "OS Guard observed a process opening a credential file."
+      }
+    ]
+  }, config);
+
+  const state = readState(config);
+  assert.equal(state.targets["agent:os-demo"].status, "danger");
+  assert.equal(state.targets["agent:os-demo"].lastEventType, "os");
+});
+
 test("formats control tower with recommended actions", () => {
   const config = testConfig();
 

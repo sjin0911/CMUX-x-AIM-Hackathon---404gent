@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { getAuditPath } from "./audit.js";
+import { getOsGuardStatus } from "./integrations/os-guard.js";
 import { getRules, summarizeRules } from "./policy/rules.js";
 import { getStatePath } from "./state.js";
 
@@ -12,6 +13,7 @@ export function runDoctor(config = {}) {
   checks.push(checkRules(config));
   checks.push(checkAuditPath(config));
   checks.push(checkStatePath(config));
+  checks.push(checkOsGuard(config));
   checks.push(checkCmux());
   checks.push(checkGemini(config));
 
@@ -85,6 +87,20 @@ function checkCmux() {
   }
 
   return warn("cmux", "cmux command not found; CLI still works without notifications");
+}
+
+function checkOsGuard(config) {
+  const status = getOsGuardStatus(config);
+
+  if (!status.enabled) {
+    return warn("os-guard", "disabled");
+  }
+
+  if (status.mode === "simulate") {
+    return warn("os-guard", "simulate mode; native EndpointSecurity not connected");
+  }
+
+  return warn("os-guard", `${status.mode} mode; native EndpointSecurity not connected`);
 }
 
 function checkGemini(config) {

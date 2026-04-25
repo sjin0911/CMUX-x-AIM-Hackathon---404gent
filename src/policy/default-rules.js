@@ -360,6 +360,51 @@ export const defaultRules = [
     remediation: "Prefer OS keychain or short-lived credentials."
   },
   {
+    id: "os.sensitive-file-open",
+    appliesTo: ["os"],
+    severity: "high",
+    category: "secret_discovery",
+    pattern: "\\bos\\s+open\\b.{0,160}\\bpath=(\"[^\"]*(\\.env|id_rsa|id_ed25519|\\.npmrc|\\.pypirc|\\.netrc|\\.kube/config|credentials|secrets?\\.json|service-account)[^\"]*\"|\\S*(\\.env|id_rsa|id_ed25519|\\.npmrc|\\.pypirc|\\.netrc|\\.kube/config|credentials|secrets?\\.json|service-account)\\S*)",
+    rationale: "OS Guard observed a process opening a file that commonly contains credentials.",
+    remediation: "Deny the file open unless a human explicitly approved secret access."
+  },
+  {
+    id: "os.private-key-open",
+    appliesTo: ["os"],
+    severity: "high",
+    category: "secret_discovery",
+    pattern: "\\bos\\s+open\\b.{0,160}\\bpath=(\"[^\"]*\\.(pem|p12|key)[^\"]*\"|\\S*\\.(pem|p12|key)\\S*)",
+    rationale: "OS Guard observed access to a private key or certificate file.",
+    remediation: "Require review before allowing key material to be read by an agent process."
+  },
+  {
+    id: "os.network-tool-exec",
+    appliesTo: ["os"],
+    severity: "medium",
+    category: "network_transfer",
+    pattern: "\\bos\\s+exec\\b.{0,160}\\bargv=\"?(curl|wget|nc|ncat|netcat|scp|rsync|ftp|sftp)\\b[^\"\\n]*\"?",
+    rationale: "OS Guard observed execution of a network transfer tool.",
+    remediation: "Confirm the destination and payload before allowing network transfer."
+  },
+  {
+    id: "os.destructive-exec",
+    appliesTo: ["os"],
+    severity: "high",
+    category: "destructive_command",
+    pattern: "\\bos\\s+exec\\b.{0,160}\\bargv=\"?(rm\\s+-[A-Za-z]*[rR][A-Za-z]*[fF]?|dd\\b|mkfs\\b|diskutil\\s+erase)[^\"\\n]*\"?",
+    rationale: "OS Guard observed execution of a destructive filesystem or disk tool.",
+    remediation: "Block destructive execution unless the target is scoped and reviewed."
+  },
+  {
+    id: "os.reverse-shell-exec",
+    appliesTo: ["os"],
+    severity: "critical",
+    category: "remote_code_execution",
+    pattern: "\\bos\\s+exec\\b.{0,220}(/dev/tcp/[A-Za-z0-9._-]+/\\d+|\\b(nc|ncat|netcat)\\b.{0,80}\\b(-e|/bin/(sh|bash))\\b|mkfifo\\s+/tmp/)",
+    rationale: "OS Guard observed process arguments resembling a reverse shell.",
+    remediation: "Block reverse shell execution outside an isolated security lab."
+  },
+  {
     id: "output.private-key",
     appliesTo: ["output"],
     severity: "critical",

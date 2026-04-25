@@ -34,6 +34,26 @@ export const defaultConfig = {
     enabled: true,
     path: ".404gent/state.json"
   },
+  osGuard: {
+    enabled: true,
+    mode: "simulate",
+    sensitivePaths: [
+      ".env",
+      ".env.*",
+      "id_rsa",
+      "id_ed25519",
+      ".npmrc",
+      ".pypirc",
+      ".netrc",
+      ".kube/config",
+      "credentials",
+      "credentials.json",
+      "secrets.json",
+      "service-account"
+    ],
+    blockExecutables: ["rm", "dd", "mkfs", "diskutil"],
+    warnExecutables: ["curl", "wget", "nc", "ncat", "netcat", "scp", "rsync", "nmap"]
+  },
   performance: {
     outputBufferBytes: 16384,
     outputBufferMs: 100,
