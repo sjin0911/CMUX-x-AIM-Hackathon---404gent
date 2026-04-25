@@ -57,6 +57,17 @@
 
 Audit logs are written as JSONL to `.404gent/events.jsonl` by default.
 
+## Diagnose
+
+```bash
+404gent diagnose
+404gent diagnose --agent codex
+404gent diagnose --target local --limit 20
+404gent --json diagnose --agent codex
+```
+
+`diagnose` turns recent audit events into a contamination report: root cause, natural-language narrative, timeline, ASCII node graph, and a sanitize-and-resume playbook. It is designed for the cmux quarantine pane and for terminal incident review after a target becomes `contaminated`.
+
 ## Status
 
 ```bash

@@ -24,6 +24,10 @@ import {
 } from "./audit.js";
 import { formatDoctor, runDoctor } from "./doctor.js";
 import {
+  buildContaminationDiagnosis,
+  formatDiagnosis
+} from "./diagnostics.js";
+import {
   formatStatus,
   formatTower,
   readState,
@@ -101,6 +105,11 @@ async function main(argv) {
     return;
   }
 
+  if (command === "diagnose") {
+    handleDiagnose(args, config, parsed);
+    return;
+  }
+
   if (command === "doctor") {
     handleDoctor(config, parsed);
     return;
@@ -130,9 +139,10 @@ async function guard(event, config) {
 function finish(report, config, parsed) {
   appendAuditLog(report, config);
   updateStateFromReport(report, config);
+  const diagnosis = diagnosisForReport(report, config);
   notifyCmux(report, config);
   logCmuxReport(report, config);
-  openCmuxQuarantinePane(report, config);
+  openCmuxQuarantinePane(report, config, { diagnosis });
   console.log(formatReport(report, { json: parsed.json }));
   process.exitCode = EXIT[report.decision] ?? 1;
 }
@@ -147,9 +157,10 @@ async function runGuardedCommand(args, config, parsed) {
 
   appendAuditLog(commandReport, config);
   updateStateFromReport(commandReport, config);
+  const diagnosis = diagnosisForReport(commandReport, config);
   notifyCmux(commandReport, config);
   logCmuxReport(commandReport, config);
-  openCmuxQuarantinePane(commandReport, config);
+  openCmuxQuarantinePane(commandReport, config, { diagnosis });
   console.error(formatReport(commandReport, { json: parsed.json }));
 
   if (commandReport.decision === "block") {
@@ -180,9 +191,10 @@ async function runGuardedAgent(args, config, parsed) {
     );
     appendAuditLog(promptReport, config);
     updateStateFromReport(promptReport, config);
+    const diagnosis = diagnosisForReport(promptReport, config);
     notifyCmux(promptReport, config);
     logCmuxReport(promptReport, config);
-    openCmuxQuarantinePane(promptReport, config);
+    openCmuxQuarantinePane(promptReport, config, { diagnosis });
     console.error(formatReport(promptReport, { json: parsed.json }));
 
     if (promptReport.decision === "block") {
@@ -200,9 +212,10 @@ async function runGuardedAgent(args, config, parsed) {
 
   appendAuditLog(commandReport, config);
   updateStateFromReport(commandReport, config);
+  const diagnosis = diagnosisForReport(commandReport, config);
   notifyCmux(commandReport, config);
   logCmuxReport(commandReport, config);
-  openCmuxQuarantinePane(commandReport, config);
+  openCmuxQuarantinePane(commandReport, config, { diagnosis });
   console.error(formatReport(commandReport, { json: parsed.json }));
 
   if (commandReport.decision === "block") {
@@ -334,6 +347,15 @@ function handleAudit(args, config, parsed) {
   }
 
   throw new Error(`Unknown audit subcommand: ${subcommand}`);
+}
+
+function handleDiagnose(args, config, parsed) {
+  const limit = Number(valueFlag(args, "--limit") ?? 12);
+  const agent = valueFlag(args, "--agent");
+  const targetId = agent ? resolveTargetId({ agent }) : valueFlag(args, "--target");
+  const events = readAuditEvents(config, { limit });
+  const diagnosis = buildContaminationDiagnosis(events, { targetId, limit });
+  printValue(diagnosis, formatDiagnosis(diagnosis), parsed);
 }
 
 function handleDoctor(config, parsed) {
@@ -509,6 +531,30 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function diagnosisForReport(report, config) {
+  if (report.decision !== "block") {
+    return null;
+  }
+
+  const events = readAuditEvents(config, { limit: 12 });
+  return buildContaminationDiagnosis(events, {
+    targetId: targetIdFromReport(report),
+    limit: 12
+  });
+}
+
+function targetIdFromReport(report) {
+  const source = report.event?.source ?? "";
+  const agentMatch = /^agent:([^:]+):/.exec(source);
+  if (agentMatch) {
+    return `agent:${agentMatch[1]}`;
+  }
+
+  return source && !["scan-prompt", "scan-command", "scan-output", "run"].includes(source)
+    ? source
+    : "local";
+}
+
 function helpText() {
   return `404gent - guardrails for terminal AI agents
 
@@ -518,6 +564,7 @@ Usage:
   404gent scan-command <command text>
   404gent scan-output <text>
   404gent run -- <command>
+  404gent diagnose [--agent <name>] [--target <id>] [--limit <n>]
   404gent agent --name <name> [--prompt <text>] -- <agent command>
   404gent rules list [--type prompt|command|output] [--category name]
   404gent rules summary

@@ -25,6 +25,24 @@ Config:
 
 This is opt-in because opening panes on every block is useful for demos and review workspaces, but too disruptive as a default.
 
+### Diagnostic Contamination Analyzer
+
+Blocked contamination events now produce an audit-backed diagnosis instead of only a danger label:
+
+- root cause: which prompt, command, or output introduced the risky pattern
+- timeline: recent audit events for the target
+- node graph: compact provenance view from prompt to command/output
+- sanitize-and-resume playbook: concrete recovery steps and reset command
+
+The same analysis is available in the terminal:
+
+```bash
+node src/cli.js diagnose --agent codex
+node src/cli.js --json diagnose --agent codex
+```
+
+When `cmux.quarantinePane` is enabled, the right-side review pane includes this diagnosis so the sidebar notification leads to actionable incident context.
+
 ### Sidebar Log And Progress
 
 404gent now uses more than desktop notifications:
