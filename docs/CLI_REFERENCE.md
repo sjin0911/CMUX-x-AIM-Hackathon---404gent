@@ -73,11 +73,14 @@ Audit logs are written as JSONL to `.404gent/events.jsonl` by default.
 ```bash
 404gent recover
 404gent recover --agent codex
+404gent recover --agent codex --rewrite
 404gent recover --agent codex --apply
 404gent --json recover --agent codex
 ```
 
 `recover` converts the diagnosis into a safe resume prompt and a selective scrub checklist. It preserves audit evidence. By default it is a dry-run; `--apply` resets the reviewed target's sticky risk state after a human has removed the risky prompt, command, or output fragments from any handoff context.
+
+Use `--rewrite` to ask the configured LLM provider to produce a safer replacement prompt. If Gemini is enabled, this uses the Gemini API with redacted inputs. If `provider` is `mock`, it uses the deterministic demo rewriter.
 
 ## Status
 

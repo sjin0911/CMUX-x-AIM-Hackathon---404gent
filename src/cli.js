@@ -5,7 +5,10 @@ import { spawn } from "node:child_process";
 import { loadConfig } from "./config.js";
 import { analyzeEvent, mergeReports } from "./policy/engine.js";
 import { getRules, summarizeRules, validateRules } from "./policy/rules.js";
-import { analyzeWithLlm } from "./providers/llm.js";
+import {
+  analyzeWithLlm,
+  rewritePromptWithLlm
+} from "./providers/llm.js";
 import {
   clearCmuxProgress,
   logCmuxReport,
@@ -115,7 +118,7 @@ async function main(argv) {
   }
 
   if (command === "recover") {
-    handleRecover(args, config, parsed);
+    await handleRecover(args, config, parsed);
     return;
   }
 
@@ -367,19 +370,29 @@ function handleDiagnose(args, config, parsed) {
   printValue(diagnosis, formatDiagnosis(diagnosis), parsed);
 }
 
-function handleRecover(args, config, parsed) {
+async function handleRecover(args, config, parsed) {
   const limit = Number(valueFlag(args, "--limit") ?? 12);
   const apply = args.includes("--apply");
+  const rewrite = args.includes("--rewrite");
   const agent = valueFlag(args, "--agent");
   const targetId = agent ? resolveTargetId({ agent }) : valueFlag(args, "--target");
   const events = readAuditEvents(config, { limit });
   const diagnosis = buildContaminationDiagnosis(events, { targetId, limit });
+  const originalPrompt = valueFlag(args, "--prompt")
+    ?? diagnosis.timeline.find((step) => step.eventType === "prompt" && step.finding)?.textPreview
+    ?? "";
+  const rewriteResult = rewrite
+    ? await rewritePromptWithLlm({ diagnosis, originalPrompt }, config)
+    : null;
 
   if (apply && diagnosis.status !== "clean") {
     resetState(config, { targetId: diagnosis.target === "local" ? "local" : diagnosis.target });
   }
 
-  const plan = buildRecoveryPlan(diagnosis, { applied: apply && diagnosis.status !== "clean" });
+  const plan = buildRecoveryPlan(diagnosis, {
+    applied: apply && diagnosis.status !== "clean",
+    rewrite: rewriteResult
+  });
   printValue(plan, formatRecoveryPlan(plan), parsed);
 }
 
@@ -590,7 +603,7 @@ Usage:
   404gent scan-output <text>
   404gent run -- <command>
   404gent diagnose [--agent <name>] [--target <id>] [--limit <n>]
-  404gent recover [--agent <name>] [--target <id>] [--limit <n>] [--apply]
+  404gent recover [--agent <name>] [--target <id>] [--limit <n>] [--rewrite] [--apply]
   404gent agent --name <name> [--prompt <text>] -- <agent command>
   404gent rules list [--type prompt|command|output] [--category name]
   404gent rules summary

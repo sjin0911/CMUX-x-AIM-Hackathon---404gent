@@ -39,12 +39,25 @@ The same analysis is available in the terminal:
 ```bash
 node src/cli.js diagnose --agent codex
 node src/cli.js recover --agent codex
+node src/cli.js recover --agent codex --rewrite
 node src/cli.js --json diagnose --agent codex
 ```
 
 When `cmux.quarantinePane` is enabled, the right-side review pane includes this diagnosis so the sidebar notification leads to actionable incident context.
 
-`recover` is intentionally dry-run by default. After review, `recover --agent codex --apply` resets only the sticky risk state for that target and preserves JSONL audit evidence for incident review.
+`recover` is intentionally dry-run by default. `recover --rewrite` asks the configured LLM provider to produce a safer replacement prompt for human approval. After review, `recover --agent codex --apply` resets only the sticky risk state for that target and preserves JSONL audit evidence for incident review.
+
+### macOS Agent Shield
+
+Because many hackathon agents run on MacBooks, 404gent also watches for macOS-sensitive shell behavior:
+
+- Keychain reads or exports through `security`
+- TCC privacy database tampering
+- Gatekeeper quarantine removal
+- LaunchAgent or LaunchDaemon persistence
+- AppleScript UI automation and shell execution
+
+This is not a full OS sandbox. It is a terminal guard layer that blocks high-risk macOS boundary crossings before an agent can execute them.
 
 ### Sidebar Log And Progress
 

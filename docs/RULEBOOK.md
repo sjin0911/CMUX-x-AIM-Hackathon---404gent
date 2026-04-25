@@ -43,6 +43,10 @@
 | `secret_leak` | command, output | block | secret staging, token/key/cookie/connection string 출력 감지 |
 | `destructive_git` | command | warn | force push 등 remote history 변경 감지 |
 | `credential_storage` | command | warn | git credential helper store 감지 |
+| `macos_secret_access` | command | block | macOS Keychain 조회/내보내기 감지 |
+| `macos_privacy_tampering` | command | block | TCC privacy DB 수정/초기화 감지 |
+| `macos_gatekeeper_bypass` | command | block | quarantine 제거, Gatekeeper 비활성화 감지 |
+| `macos_automation_abuse` | command | warn | AppleScript UI automation/shell execution 감지 |
 | `pii_leak` | output | warn/block | SSN, 주민등록번호, card number 형태 출력 감지 |
 
 ## Prompt Rules
@@ -128,3 +132,15 @@ node src/cli.js run -- node -e 'console.log("DATABASE_URL=postgres://user:pass@e
 - `high`, `critical`은 기본적으로 `block`이다.
 - false positive가 생기면 `examples/404gent.config.json`의 `rules.disabled`에 룰 ID를 추가하면 된다.
 - LLM review는 rule hit가 애매한 `medium`이나 탐지 없는 이벤트에만 붙이는 방식이 좋다. latency와 비용을 아끼면서도 데모 설득력이 올라간다.
+
+## macOS Agent Shield
+
+404gent includes macOS-sensitive command rules for agents running on a MacBook:
+
+- Keychain access: `security dump-keychain`, `security find-generic-password`, export/unlock flows
+- Privacy database tampering: `tccutil reset`, direct `TCC.db` edits
+- Gatekeeper bypass: `xattr -d com.apple.quarantine`, `spctl --master-disable`
+- Persistence: writes to `~/Library/LaunchAgents`, `/Library/LaunchAgents`, `/Library/LaunchDaemons`
+- Automation abuse: AppleScript `osascript` driving `System Events`, keystrokes, or shell commands
+
+These rules do not claim full OS sandboxing. They raise or block high-risk terminal actions that cross macOS security boundaries while preserving audit evidence for review.

@@ -1,4 +1,4 @@
-export function buildRecoveryPlan(diagnosis, { applied = false } = {}) {
+export function buildRecoveryPlan(diagnosis, { applied = false, rewrite = null } = {}) {
   const contaminatedSteps = diagnosis.timeline.filter((step) => step.isContamination || step.finding);
   const root = contaminatedSteps[0] ?? null;
   const scrubItems = contaminatedSteps.map((step) => ({
@@ -18,6 +18,7 @@ export function buildRecoveryPlan(diagnosis, { applied = false } = {}) {
     auditPreserved: true,
     scrubItems,
     safeResumePrompt: buildSafeResumePrompt(diagnosis, root),
+    rewrite,
     checklist: buildChecklist(diagnosis, root, applied)
   };
 }
@@ -47,6 +48,33 @@ export function formatRecoveryPlan(plan, { json = false } = {}) {
   lines.push("");
   lines.push("Safe Resume Prompt:");
   lines.push(plan.safeResumePrompt);
+
+  if (plan.rewrite) {
+    lines.push("");
+    lines.push("LLM Rewrite:");
+    lines.push(`status: ${plan.rewrite.status}`);
+    if (plan.rewrite.provider) {
+      lines.push(`provider: ${plan.rewrite.provider}/${plan.rewrite.model}`);
+    }
+    if (plan.rewrite.reason) {
+      lines.push(`reason: ${plan.rewrite.reason}`);
+    }
+    if (plan.rewrite.rationale) {
+      lines.push(`rationale: ${plan.rewrite.rationale}`);
+    }
+    if (plan.rewrite.rewrittenPrompt) {
+      lines.push("");
+      lines.push(plan.rewrite.rewrittenPrompt);
+    }
+    if (plan.rewrite.removedRisks?.length > 0) {
+      lines.push("");
+      lines.push("Removed Risks:");
+      for (const risk of plan.rewrite.removedRisks) {
+        lines.push(`- ${risk}`);
+      }
+    }
+  }
+
   lines.push("");
   lines.push("Checklist:");
   for (const item of plan.checklist) {
