@@ -1,5 +1,5 @@
 import { analyzeEvent } from "./policy/engine.js";
-import { notifyCmux } from "./integrations/cmux.js";
+import { logCmuxReport, notifyCmux } from "./integrations/cmux.js";
 import { updateStateFromReport } from "./state.js";
 import {
   appendAuditLog,
@@ -66,6 +66,7 @@ export function createOutputMonitor(config = {}, { source = "run" } = {}) {
       appendAuditLog(report, config);
       updateStateFromReport(report, config);
       notifyCmux(report, config);
+      logCmuxReport(report, config);
     }
 
     const output = shouldRedactOutput(report, config) ? redactSecrets(text) : text;
@@ -96,4 +97,3 @@ function scanText(text, maxScanBytes) {
 
   return text.slice(0, maxScanBytes);
 }
-

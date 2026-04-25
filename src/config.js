@@ -21,7 +21,10 @@ export const defaultConfig = {
   },
   cmux: {
     notify: true,
-    status: true
+    status: true,
+    log: true,
+    progress: true,
+    quarantinePane: false
   },
   logging: {
     enabled: true,

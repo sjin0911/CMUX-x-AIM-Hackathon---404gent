@@ -13,7 +13,7 @@ It shows:
 - reconnaissance command warn
 - safe command execution with sensitive output redaction
 - audit trail summary
-- cmux notification and sidebar status updates when cmux is available
+- cmux notification, sidebar status, progress, and log updates when cmux is available
 
 ## Run
 
@@ -41,6 +41,8 @@ bash scripts/cmux-agent-demo.sh
 
 - `cmux notify --title "..." --body "..."`
 - `cmux set-status 404gent "..." --icon shield --color "..."`
+- `cmux set-progress ... --label "..."`
+- `cmux log --level warning|error --source ... "..."`
 
 These are intentionally small integration points because they work with any terminal agent that can call a shell command.
 
@@ -56,5 +58,7 @@ Official references:
 3. Point out the notification when the demo starts.
 4. Point out `doctor` and `rules summary` first: the guard knows its policy and environment.
 5. Point out `BLOCK`, `WARN`, and `ALLOW` decisions.
-6. Point out that the DB URL is redacted before terminal output leaves the guard.
-7. End on `audit summary`: the guard leaves a reviewable trail.
+6. Point out sidebar progress while a guarded command or agent is running.
+7. Point out that warn/block events are appended to the cmux sidebar log, not only printed in the terminal.
+8. Point out that the DB URL is redacted before terminal output leaves the guard.
+9. End on `audit summary`: the guard leaves a reviewable trail.
