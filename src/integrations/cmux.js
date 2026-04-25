@@ -41,6 +41,78 @@ export function notifyCmux(report, config = {}) {
   return { status: result.status === 0 ? "ok" : "error", code: result.status };
 }
 
+export function readCmuxScreen({ workspace, surface, scrollback = false, lines } = {}) {
+  const args = buildReadScreenArgs({ workspace, surface, scrollback, lines });
+  const result = spawnSync("cmux", args, {
+    encoding: "utf8"
+  });
+
+  if (result.error) {
+    return { status: "unavailable", error: result.error.message, text: "" };
+  }
+
+  if (result.status !== 0) {
+    return {
+      status: "error",
+      code: result.status,
+      error: String(result.stderr || "").trim(),
+      text: String(result.stdout || "")
+    };
+  }
+
+  return { status: "ok", text: String(result.stdout || "") };
+}
+
+export function sendCmuxKey(key, { workspace, surface } = {}) {
+  const args = buildSendKeyArgs(key, { workspace, surface });
+  const result = spawnSync("cmux", args, {
+    encoding: "utf8"
+  });
+
+  if (result.error) {
+    return { status: "unavailable", error: result.error.message };
+  }
+
+  if (result.status !== 0) {
+    return {
+      status: "error",
+      code: result.status,
+      error: String(result.stderr || "").trim()
+    };
+  }
+
+  return { status: "ok" };
+}
+
+export function buildReadScreenArgs({ workspace, surface, scrollback = false, lines } = {}) {
+  const args = ["read-screen"];
+  if (workspace) {
+    args.push("--workspace", workspace);
+  }
+  if (surface) {
+    args.push("--surface", surface);
+  }
+  if (scrollback || lines) {
+    args.push("--scrollback");
+  }
+  if (lines) {
+    args.push("--lines", String(lines));
+  }
+  return args;
+}
+
+export function buildSendKeyArgs(key, { workspace, surface } = {}) {
+  const args = ["send-key"];
+  if (workspace) {
+    args.push("--workspace", workspace);
+  }
+  if (surface) {
+    args.push("--surface", surface);
+  }
+  args.push(String(key));
+  return args;
+}
+
 export function setCmuxStatus(key, value, { icon = "shield", color = "#34c759" } = {}, config = {}) {
   if (config.cmux?.status === false) {
     return { status: "skipped" };

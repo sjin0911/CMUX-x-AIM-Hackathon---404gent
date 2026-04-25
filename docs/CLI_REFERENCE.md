@@ -50,6 +50,15 @@
 
 OS Guard commands simulate file/process events and send them through normal policy, audit, status, and cmux reporting. See `docs/OS_GUARD.md`.
 
+## cmux Watch
+
+```bash
+404gent cmux-watch --surface surface:2 --lines 200 --interrupt
+404gent cmux-watch --once
+```
+
+`cmux-watch` reads terminal text with `cmux read-screen`, scans it as an output event, and records warn/block findings through the normal audit, status, notification, and log path. With `--interrupt`, block findings send `cmux send-key ... ctrl+c` to the same target surface.
+
 ## Rules
 
 ```bash

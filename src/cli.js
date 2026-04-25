@@ -11,9 +11,16 @@ import {
   logCmuxReport,
   notifyCmux,
   openCmuxQuarantinePane,
+  readCmuxScreen,
+  sendCmuxKey,
   setCmuxProgress,
   setCmuxStatus
 } from "./integrations/cmux.js";
+import {
+  createInterruptLimiter,
+  createScreenEvent,
+  shouldProcessScreen
+} from "./cmux-watch.js";
 import {
   createExecEvent,
   createOpenEvent,
@@ -122,6 +129,11 @@ async function main(argv) {
     return;
   }
 
+  if (command === "cmux-watch") {
+    await handleCmuxWatch(args, config, parsed);
+    return;
+  }
+
   if (command === "tower") {
     await handleTower(args, config, parsed);
     return;
@@ -146,6 +158,14 @@ function finish(report, config, parsed) {
   openCmuxQuarantinePane(report, config);
   console.log(formatReport(report, { json: parsed.json }));
   process.exitCode = EXIT[report.decision] ?? 1;
+}
+
+function recordReport(report, config) {
+  appendAuditLog(report, config);
+  updateStateFromReport(report, config);
+  notifyCmux(report, config);
+  logCmuxReport(report, config);
+  openCmuxQuarantinePane(report, config);
 }
 
 async function runGuardedCommand(args, config, parsed) {
@@ -438,6 +458,95 @@ async function handleOsGuard(args, config, parsed) {
   throw new Error(`Unknown os-guard subcommand: ${subcommand}`);
 }
 
+async function handleCmuxWatch(args, config, parsed) {
+  if (config.cmux?.screenWatch?.enabled === false) {
+    printValue({ status: "disabled" }, "cmux screen watch is disabled.", parsed);
+    return;
+  }
+
+  const once = args.includes("--once");
+  const interrupt = args.includes("--interrupt");
+  const workspace = valueFlag(args, "--workspace");
+  const surface = valueFlag(args, "--surface");
+  const agent = valueFlag(args, "--agent");
+  const lines = numberFlag(args, "--lines");
+  const scrollback = args.includes("--scrollback") || Boolean(lines);
+  const intervalMs = numberFlag(args, "--interval") ?? config.cmux?.screenWatch?.intervalMs ?? 1000;
+  const maxScreenChars = config.cmux?.screenWatch?.maxScreenChars ?? 12000;
+  const maxInterrupts = config.cmux?.screenWatch?.maxInterruptsPerMinute ?? 5;
+  const limiter = createInterruptLimiter({ maxInterrupts });
+  let previousHash = null;
+  let stopped = false;
+
+  process.on("SIGINT", () => {
+    stopped = true;
+    process.stdout.write("\n");
+  });
+
+  do {
+    const result = readCmuxScreen({ workspace, surface, scrollback, lines });
+    if (result.status !== "ok") {
+      const message = result.error
+        ? `cmux read-screen unavailable: ${result.error}`
+        : `cmux read-screen failed: ${result.status}`;
+      printValue(result, message, parsed);
+      process.exitCode = 1;
+      return;
+    }
+
+    const decision = shouldProcessScreen(result.text, previousHash);
+    previousHash = decision.hash;
+
+    if (decision.process) {
+      const event = createScreenEvent(result.text, {
+        agent,
+        workspace,
+        surface,
+        maxChars: maxScreenChars
+      });
+      const report = await guard(event, config);
+
+      if (report.decision !== "allow") {
+        recordReport(report, config);
+
+        let interruptResult = null;
+        if (interrupt && report.decision === "block") {
+          if (limiter.allow()) {
+            interruptResult = sendCmuxKey("ctrl+c", { workspace, surface });
+          } else {
+            interruptResult = { status: "rate-limited", maxInterrupts };
+          }
+        }
+
+        if (parsed.json) {
+          printValue({ report, interrupt: interruptResult }, "", parsed);
+        } else {
+          console.log(formatReport(report));
+          if (interruptResult) {
+            console.log(`cmux interrupt: ${interruptResult.status}`);
+          }
+        }
+      } else if (once) {
+        printValue(
+          { status: "ok", decision: "allow", reason: "no findings" },
+          "cmux screen watch: no findings",
+          parsed
+        );
+      }
+    } else if (once) {
+      printValue(
+        { status: "ok", decision: "skipped", reason: decision.reason },
+        `cmux screen watch: skipped (${decision.reason})`,
+        parsed
+      );
+    }
+
+    if (!once && !stopped) {
+      await sleep(intervalMs);
+    }
+  } while (!once && !stopped);
+}
+
 async function handleTower(args, config, parsed) {
   const watch = args.includes("--watch");
   const intervalMs = Number(valueFlag(args, "--interval") ?? 1000);
@@ -573,6 +682,20 @@ function valueFlag(args, flag) {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
+function numberFlag(args, flag) {
+  const value = valueFlag(args, flag);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    throw new Error(`${flag} requires a positive number`);
+  }
+
+  return number;
+}
+
 function firstPositional(args) {
   return positionalArgs(args)[0];
 }
@@ -607,6 +730,7 @@ Usage:
   404gent os-guard status
   404gent os-guard simulate-open <path> [--agent name] [--pid pid]
   404gent os-guard simulate-exec <command...> [--agent name] [--pid pid]
+  404gent cmux-watch [--surface id] [--lines n] [--once] [--interrupt]
   404gent rules list [--type prompt|command|output|os] [--category name]
   404gent rules summary
   404gent rules validate
@@ -631,6 +755,7 @@ Examples:
   404gent agent --name codex --prompt "Summarize README" --with-os-guard -- codex
   404gent os-guard simulate-open .env --agent codex --pid 1234
   404gent os-guard simulate-exec curl https://example.com -d @- --agent codex
+  404gent cmux-watch --surface surface:2 --lines 200 --interrupt
   404gent status --agent codex
   404gent tower --watch
 `;

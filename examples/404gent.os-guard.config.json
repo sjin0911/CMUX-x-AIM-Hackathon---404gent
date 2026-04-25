@@ -24,6 +24,12 @@
     "status": true,
     "log": true,
     "progress": true,
-    "quarantinePane": true
+    "quarantinePane": true,
+    "screenWatch": {
+      "enabled": true,
+      "intervalMs": 1000,
+      "maxScreenChars": 12000,
+      "maxInterruptsPerMinute": 5
+    }
   }
 }

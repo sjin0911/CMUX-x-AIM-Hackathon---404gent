@@ -299,12 +299,22 @@ npm link
 - `cmux log`: sidebar log에 보안 이벤트 기록
 - `cmux set-progress`: guarded command/agent 실행 중 progress 표시
 - `cmux new-split`, `cmux send`: quarantine pane 생성 및 review 내용 표시
+- `cmux read-screen`: surface 화면을 읽어 실행 중 output guard에 연결
+- `cmux send-key`: block 화면 감지 시 같은 surface에 `ctrl+c` 전송
 
-현재 구현은 모든 cmux 터미널을 자동으로 가로채는 방식이 아닙니다. 안정적인 blocking을 위해서는 다음 중 하나로 agent를 연결해야 합니다.
+현재 구현은 모든 cmux 터미널 입력을 실행 전에 자동으로 가로채는 방식이 아닙니다. 안정적인 pre-execution blocking을 위해서는 다음 중 하나로 agent를 연결해야 합니다.
 
 - wrapper mode: `404gent agent --name ... -- <agent command>`
 - shell helper: `guard-codex "prompt"`
 - native hook mode: `examples/hooks/claude-code-404gent.sh`
+
+실행 중 화면 감시는 별도로 사용할 수 있습니다.
+
+```bash
+node src/cli.js cmux-watch --surface surface:2 --lines 200 --interrupt
+```
+
+이 기능은 화면에 나타난 위험 신호를 감지해 operator safety interrupt를 보내는 레이어입니다. 이미 외부로 전송된 네트워크 payload를 되돌리지는 않습니다.
 
 Claude-style hook config 설치:
 
@@ -352,10 +362,10 @@ npm run demo:judge
 
 1. AI coding agent는 실제 터미널 명령을 실행한다.
 2. prompt injection은 shell risk로 이어질 수 있다.
-3. 404gent는 prompt, command, output 세 지점에서 막는다.
+3. 404gent는 prompt, command, OS, output 네 지점에서 막는다.
 4. cmux는 operator visibility layer를 제공한다.
 5. block된 action은 audit log와 cmux UI에 남는다.
-6. cmux-native mode에서는 quarantine pane으로 리뷰 맥락을 보여준다.
+6. cmux-native mode에서는 quarantine pane과 screen interrupt로 리뷰 및 개입 맥락을 보여준다.
 
 상세 발표 스크립트:
 
@@ -371,6 +381,7 @@ src/policy/default-rules.js        built-in security rules
 src/policy/engine.js               rule evaluation and decisions
 src/policy/rules.js                custom rule pack loader and validator
 src/providers/llm.js               optional Gemini structured review
+src/cmux-watch.js                  cmux screen watch helper
 src/integrations/cmux.js           cmux notify/status/log/progress/quarantine adapter
 src/integrations/os-guard.js       simulated OS Guard adapter
 src/audit.js                       audit summary and tail helpers
@@ -394,6 +405,7 @@ examples/rules/                          custom rule packs
 
 scripts/cmux-native-demo.sh        cmux-native quarantine demo
 scripts/cmux-demo.sh               cmux-style end-to-end demo
+scripts/cmux-watch-demo.sh         cmux read-screen/send-key demo
 scripts/cmux-agent-demo.sh         per-agent status demo
 scripts/os-guard-demo.sh           simulated OS Guard demo
 scripts/judge-demo.sh              reliable final judge demo

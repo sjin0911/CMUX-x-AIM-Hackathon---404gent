@@ -14,6 +14,7 @@ It shows:
 - safe command execution with sensitive output redaction
 - audit trail summary
 - cmux notification, sidebar status, progress, and log updates when cmux is available
+- live screen watching with `cmux read-screen` and optional `cmux send-key ctrl+c` interruption
 
 ## Run
 
@@ -35,6 +36,21 @@ For per-agent wrapper behavior:
 bash scripts/cmux-agent-demo.sh
 ```
 
+For cmux-native live screen intervention:
+
+```bash
+npm run demo:cmux-watch
+node src/cli.js cmux-watch --surface surface:2 --lines 200 --interrupt
+```
+
+In the target surface, run:
+
+```bash
+node -e 'setTimeout(() => { console.log("OPENAI_API_KEY=sk-1234567890abcdefghijklmnop"); setInterval(() => console.log("still running"), 500); }, 1000)'
+```
+
+The watcher reads the target surface, scans the visible screen plus recent scrollback, records a block report, and sends `ctrl+c` to the same surface. This is an operator safety interrupt for screen-visible risk; it does not undo network payloads that may already have left the machine.
+
 ## cmux Integration Points
 
 404gent currently uses:
@@ -43,6 +59,8 @@ bash scripts/cmux-agent-demo.sh
 - `cmux set-status 404gent "..." --icon shield --color "..."`
 - `cmux set-progress ... --label "..."`
 - `cmux log --level warning|error --source ... "..."`
+- `cmux read-screen --surface ... --scrollback --lines ...`
+- `cmux send-key --surface ... ctrl+c`
 
 These are intentionally small integration points because they work with any terminal agent that can call a shell command.
 

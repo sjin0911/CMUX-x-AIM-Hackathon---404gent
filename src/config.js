@@ -24,7 +24,13 @@ export const defaultConfig = {
     status: true,
     log: true,
     progress: true,
-    quarantinePane: false
+    quarantinePane: false,
+    screenWatch: {
+      enabled: true,
+      intervalMs: 1000,
+      maxScreenChars: 12000,
+      maxInterruptsPerMinute: 5
+    }
   },
   logging: {
     enabled: true,
