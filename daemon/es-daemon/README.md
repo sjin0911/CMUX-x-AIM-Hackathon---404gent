@@ -12,6 +12,13 @@ Skeleton mode only. This package does not create an EndpointSecurity client, doe
 swift build
 ```
 
+If `xcode-select` still points at Command Line Tools while full Xcode is installed, build with an explicit developer directory:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode-16.2.0.app/Contents/Developer swift build
+DEVELOPER_DIR=/Applications/Xcode-16.2.0.app/Contents/Developer swift test
+```
+
 If SwiftPM fails while compiling `Package.swift` or Foundation modules, reinstall or switch to a matching Xcode/Command Line Tools toolchain with `xcode-select`. EndpointSecurity work should be built with a complete, matching Apple toolchain because later phases require entitlements and signing.
 
 ## Run
