@@ -57,6 +57,31 @@
 
 Audit logs are written as JSONL to `.404gent/events.jsonl` by default.
 
+## Diagnose
+
+```bash
+404gent diagnose
+404gent diagnose --agent codex
+404gent diagnose --target local --limit 20
+404gent --json diagnose --agent codex
+```
+
+`diagnose` turns recent audit events into a contamination report: root cause, natural-language narrative, timeline, ASCII node graph, and a sanitize-and-resume playbook. It is designed for the cmux quarantine pane and for terminal incident review after a target becomes `contaminated`.
+
+## Recover
+
+```bash
+404gent recover
+404gent recover --agent codex
+404gent recover --agent codex --rewrite
+404gent recover --agent codex --apply
+404gent --json recover --agent codex
+```
+
+`recover` converts the diagnosis into a safe resume prompt and a selective scrub checklist. It preserves audit evidence. By default it is a dry-run; `--apply` resets the reviewed target's sticky risk state after a human has removed the risky prompt, command, or output fragments from any handoff context.
+
+Use `--rewrite` to ask the configured LLM provider to produce a safer replacement prompt. If Gemini is enabled, this uses the Gemini API with redacted inputs. If `provider` is `mock`, it uses the deterministic demo rewriter.
+
 ## Status
 
 ```bash

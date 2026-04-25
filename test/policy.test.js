@@ -146,6 +146,32 @@ test("blocks destructive cloud commands", () => {
   assert.equal(report.findings[0].category, "destructive_cloud");
 });
 
+test("blocks macOS keychain access commands", () => {
+  const report = analyzeEvent(
+    {
+      type: "command",
+      text: "security find-generic-password -a user -s github -w"
+    },
+    defaultConfig
+  );
+
+  assert.equal(report.decision, "block");
+  assert.equal(report.findings[0].category, "macos_secret_access");
+});
+
+test("blocks macOS quarantine bypass commands", () => {
+  const report = analyzeEvent(
+    {
+      type: "command",
+      text: "xattr -dr com.apple.quarantine ~/Downloads/tool.app"
+    },
+    defaultConfig
+  );
+
+  assert.equal(report.decision, "block");
+  assert.equal(report.findings[0].category, "macos_gatekeeper_bypass");
+});
+
 test("redacts likely secrets", () => {
   const output = redactSecrets("OPENAI_API_KEY=sk-1234567890abcdefghijklmnop");
   assert.equal(output, "[REDACTED_SECRET]");
