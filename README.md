@@ -411,6 +411,94 @@ node src/cli.js --json rules summary
 node src/cli.js --json status
 ```
 
+## 팀 브랜치 전략
+
+이번 프로젝트는 여러 팀원이 같은 base에서 서로 다른 아이디어를 실험하는 형태입니다. 실험 브랜치를 바로 `main`에 merge하면 충돌이 커지기 때문에, 아래 구조로 운영합니다.
+
+```text
+main
+  안정 데모 브랜치
+
+base/cmux-safety-lab
+  모든 실험이 시작되는 공통 base
+
+exp/<idea-name>
+  아이디어별 자유 실험 브랜치
+
+integrate/demo-final
+  발표 직전 쓸 커밋만 선별해서 모으는 통합 브랜치
+```
+
+### 브랜치 역할
+
+- `main`: 항상 발표 가능한 안정 버전만 유지합니다.
+- `base/cmux-safety-lab`: 현재 cmux-native safety controls와 control tower가 들어간 공통 실험 기준입니다.
+- `exp/*`: 팀원들이 자유롭게 깨고 고치는 실험 브랜치입니다. 서로 다른 `exp/*` 브랜치끼리는 merge하지 않습니다.
+- `integrate/demo-final`: 발표에 쓸 기능만 cherry-pick하거나 파일 단위로 가져와 최종 데모를 만드는 브랜치입니다.
+
+### 새 아이디어 실험 시작하기
+
+팀원은 항상 `base/cmux-safety-lab`에서 자기 실험 브랜치를 만듭니다.
+
+```bash
+git fetch origin
+git checkout -b exp/<idea-name> origin/base/cmux-safety-lab
+```
+
+예시:
+
+```bash
+git checkout -b exp/surface-policy origin/base/cmux-safety-lab
+git checkout -b exp/intent-rewrite origin/base/cmux-safety-lab
+git checkout -b exp/cross-agent-monitor origin/base/cmux-safety-lab
+git checkout -b exp/tower-ui-polish origin/base/cmux-safety-lab
+```
+
+작업 후 push:
+
+```bash
+git add .
+git commit -m "feat: describe the experiment"
+git push -u origin exp/<idea-name>
+```
+
+### 실험 브랜치에서 꼭 확인할 것
+
+```bash
+npm run demo:reset
+npm test
+npm run demo:judge
+npm run demo:agents
+npm run tower
+npm run demo:cmux-native
+```
+
+### 발표 브랜치에 반영하기
+
+실험 브랜치를 통째로 merge하지 않고, 발표에 쓸 커밋만 `integrate/demo-final`로 가져옵니다.
+
+```bash
+git checkout integrate/demo-final
+git pull origin integrate/demo-final
+git cherry-pick <commit-sha>
+```
+
+파일 단위로 가져와야 할 때:
+
+```bash
+git checkout exp/<idea-name> -- path/to/file
+git add path/to/file
+git commit -m "integrate: add selected demo change"
+```
+
+### 충돌을 줄이는 규칙
+
+- `exp/*` 브랜치끼리는 서로 merge하지 않습니다.
+- `main`에 직접 push하지 않습니다.
+- 실험이 많이 깨져도 괜찮지만, PR 설명에 무엇이 동작하고 무엇이 깨졌는지 적습니다.
+- 발표에 필요한 변경만 `integrate/demo-final`에 선별 반영합니다.
+- 최종 발표 직전에는 `integrate/demo-final`에서 전체 데모 명령을 다시 실행합니다.
+
 ## 작업 분담 아이디어
 
 - Policy: 룰 정확도, false positive 튜닝, custom policy pack
