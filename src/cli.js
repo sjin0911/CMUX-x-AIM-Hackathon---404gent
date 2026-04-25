@@ -6,7 +6,14 @@ import { loadConfig } from "./config.js";
 import { analyzeEvent, mergeReports } from "./policy/engine.js";
 import { getRules, summarizeRules, validateRules } from "./policy/rules.js";
 import { analyzeWithLlm } from "./providers/llm.js";
-import { notifyCmux, setCmuxStatus } from "./integrations/cmux.js";
+import {
+  clearCmuxProgress,
+  logCmuxReport,
+  notifyCmux,
+  openCmuxQuarantinePane,
+  setCmuxProgress,
+  setCmuxStatus
+} from "./integrations/cmux.js";
 import { createOutputMonitor } from "./output-monitor.js";
 import {
   formatAuditSummary,
@@ -118,6 +125,8 @@ function finish(report, config, parsed) {
   appendAuditLog(report, config);
   updateStateFromReport(report, config);
   notifyCmux(report, config);
+  logCmuxReport(report, config);
+  openCmuxQuarantinePane(report, config);
   console.log(formatReport(report, { json: parsed.json }));
   process.exitCode = EXIT[report.decision] ?? 1;
 }
@@ -133,6 +142,8 @@ async function runGuardedCommand(args, config, parsed) {
   appendAuditLog(commandReport, config);
   updateStateFromReport(commandReport, config);
   notifyCmux(commandReport, config);
+  logCmuxReport(commandReport, config);
+  openCmuxQuarantinePane(commandReport, config);
   console.error(formatReport(commandReport, { json: parsed.json }));
 
   if (commandReport.decision === "block") {
@@ -140,7 +151,9 @@ async function runGuardedCommand(args, config, parsed) {
     return;
   }
 
+  setCmuxProgress(0.2, "404gent running guarded command", config);
   await spawnAndMonitor(commandArgs, commandText, config, { source: "run" });
+  clearCmuxProgress(config);
 }
 
 async function runGuardedAgent(args, config, parsed) {
@@ -162,6 +175,8 @@ async function runGuardedAgent(args, config, parsed) {
     appendAuditLog(promptReport, config);
     updateStateFromReport(promptReport, config);
     notifyCmux(promptReport, config);
+    logCmuxReport(promptReport, config);
+    openCmuxQuarantinePane(promptReport, config);
     console.error(formatReport(promptReport, { json: parsed.json }));
 
     if (promptReport.decision === "block") {
@@ -180,6 +195,8 @@ async function runGuardedAgent(args, config, parsed) {
   appendAuditLog(commandReport, config);
   updateStateFromReport(commandReport, config);
   notifyCmux(commandReport, config);
+  logCmuxReport(commandReport, config);
+  openCmuxQuarantinePane(commandReport, config);
   console.error(formatReport(commandReport, { json: parsed.json }));
 
   if (commandReport.decision === "block") {
@@ -189,7 +206,9 @@ async function runGuardedAgent(args, config, parsed) {
   }
 
   setCmuxStatus(`404gent:agent:${name}`, "running guarded", { icon: "shield", color: "#34c759" }, config);
+  setCmuxProgress(0.2, `404gent guarding ${name}`, config);
   await spawnAndMonitor(commandArgs, commandText, config, { source: `agent:${name}:output` });
+  clearCmuxProgress(config);
   const state = readState(config);
   const target = state.targets?.[`agent:${name}`];
   if (target?.status && target.status !== "clean") {

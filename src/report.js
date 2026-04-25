@@ -29,23 +29,40 @@ export function formatReport(report, { json = false } = {}) {
   }
 
   const lines = [];
-  lines.push(`404gent decision: ${report.decision.toUpperCase()} (${report.event.type})`);
+  lines.push(`${decisionIcon(report.decision)} 404gent ${colorDecision(report.decision)} (${report.event.type})`);
 
   if (report.findings.length === 0) {
-    lines.push("No findings.");
+    lines.push("Status: no findings");
     return lines.join("\n");
   }
 
-  for (const finding of report.findings) {
-    lines.push(`- [${finding.severity}] ${finding.id}: ${finding.rationale}`);
-    lines.push(`  remediation: ${finding.remediation}`);
+  const topFinding = report.findings[0];
+  lines.push(`Risk: ${severityIcon(topFinding.severity)} ${colorSeverity(topFinding.severity)} / ${topFinding.category}`);
+  lines.push(`Intent: ${inferIntent(topFinding, report.event)}`);
+  lines.push(`Reason: ${topFinding.rationale}`);
+  lines.push(`Action: ${topFinding.remediation}`);
+
+  if (topFinding.match) {
+    lines.push(`Matched: ${redactSecrets(topFinding.match)}`);
+  }
+
+  if (report.findings.length > 1) {
+    lines.push("");
+    lines.push("Additional findings:");
+  }
+
+  for (const finding of report.findings.slice(1)) {
+    lines.push(`- ${severityIcon(finding.severity)} ${colorSeverity(finding.severity)} ${finding.id}`);
+    lines.push(`  reason: ${finding.rationale}`);
+    lines.push(`  action: ${finding.remediation}`);
     if (finding.match) {
-      lines.push(`  match: ${redactSecrets(finding.match)}`);
+      lines.push(`  matched: ${redactSecrets(finding.match)}`);
     }
   }
 
   if (report.llm) {
-    lines.push(`LLM: ${report.llm.provider}/${report.llm.model} ${report.llm.status}`);
+    lines.push("");
+    lines.push(`LLM review: ${report.llm.provider}/${report.llm.model} ${report.llm.status}`);
   }
 
   return lines.join("\n");
@@ -95,4 +112,101 @@ export function shouldRedactOutput(report, config = {}) {
       "pii_leak"
     ].includes(finding.category);
   });
+}
+
+function decisionIcon(decision) {
+  return {
+    allow: "✅",
+    warn: "⚠️",
+    block: "🛑"
+  }[decision] ?? "•";
+}
+
+function severityIcon(severity) {
+  return {
+    critical: "🔴",
+    high: "🔴",
+    medium: "🟠",
+    low: "🟢"
+  }[severity] ?? "•";
+}
+
+function colorDecision(decision) {
+  const label = String(decision || "unknown").toUpperCase();
+  return color(label, {
+    allow: "green",
+    warn: "yellow",
+    block: "red"
+  }[decision]);
+}
+
+function colorSeverity(severity) {
+  const label = String(severity || "unknown").toUpperCase();
+  return color(label, {
+    critical: "red",
+    high: "red",
+    medium: "yellow",
+    low: "green"
+  }[severity]);
+}
+
+function color(text, name) {
+  if (!supportsColor() || !name) {
+    return text;
+  }
+
+  const codes = {
+    red: [31, 39],
+    yellow: [33, 39],
+    green: [32, 39]
+  };
+  const pair = codes[name];
+  return pair ? `\u001b[${pair[0]}m${text}\u001b[${pair[1]}m` : text;
+}
+
+function supportsColor() {
+  if (process.env.NO_COLOR) {
+    return false;
+  }
+
+  return Boolean(process.env.FORCE_COLOR || process.stdout?.isTTY || process.stderr?.isTTY);
+}
+
+function inferIntent(finding, event = {}) {
+  const category = finding.category;
+  const text = String(event.text || "");
+
+  if (category === "prompt_injection") {
+    return "The prompt appears to override higher-priority agent instructions.";
+  }
+
+  if (category === "secret_exfiltration") {
+    return "The action appears to move secrets toward an external destination.";
+  }
+
+  if (category === "secret_discovery") {
+    return "The action appears to inspect files that commonly contain credentials.";
+  }
+
+  if (category === "secret_leak") {
+    return "The output appears to expose a credential or connection secret.";
+  }
+
+  if (category === "remote_code_execution") {
+    return "The command appears to create remote execution or an interactive remote shell.";
+  }
+
+  if (category?.startsWith("destructive")) {
+    return "The command appears to remove or mutate high-impact local, cloud, or infrastructure resources.";
+  }
+
+  if (category === "reconnaissance") {
+    return "The command appears to enumerate network or service information.";
+  }
+
+  if (/\b(curl|wget|nc|scp|rsync|ftp|sftp)\b/i.test(text)) {
+    return "The action includes network transfer behavior and needs context-aware review.";
+  }
+
+  return "The action matched a local safety policy and needs review.";
 }
