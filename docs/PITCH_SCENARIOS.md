@@ -139,6 +139,20 @@ npm run demo:cmux
 - 마지막 `audit summary`로 보안 이벤트 기록 확인
 - 터미널-first라서 cmux의 철학과 맞음
 
+## Recovery Demo
+
+```bash
+npm run demo:recovery
+```
+
+보여줄 포인트:
+
+- malicious prompt가 agent launch 전에 block됨
+- `diagnose`가 root cause, timeline, graph를 보여줌
+- `recover --rewrite`가 위험 의도를 제거한 safe replacement prompt를 제안함
+- `recover --apply`는 audit evidence를 보존하면서 reviewed target state만 reset함
+- macOS Keychain/Gatekeeper 위험 명령을 OS boundary crossing으로 차단함
+
 ## Gemini LLM Demo
 
 환경변수:
