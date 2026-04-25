@@ -251,6 +251,20 @@ function formatQuarantineDiagnosis(diagnosis) {
   for (const action of diagnosis.playbook.slice(0, 5)) {
     lines.push(`- ${action}`);
   }
+  lines.push(`- Dry-run recovery: node src/cli.js recover${recoverTargetFlag(diagnosis)}`);
+  lines.push(`- Apply after review: node src/cli.js recover${recoverTargetFlag(diagnosis)} --apply`);
 
   return lines;
+}
+
+function recoverTargetFlag(diagnosis) {
+  if (diagnosis.target?.startsWith("agent:")) {
+    return ` --agent ${diagnosis.target.slice("agent:".length)}`;
+  }
+
+  if (diagnosis.target && diagnosis.target !== "local") {
+    return ` --target ${diagnosis.target}`;
+  }
+
+  return "";
 }

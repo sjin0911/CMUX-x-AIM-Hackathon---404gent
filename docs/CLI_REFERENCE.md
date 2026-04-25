@@ -68,6 +68,17 @@ Audit logs are written as JSONL to `.404gent/events.jsonl` by default.
 
 `diagnose` turns recent audit events into a contamination report: root cause, natural-language narrative, timeline, ASCII node graph, and a sanitize-and-resume playbook. It is designed for the cmux quarantine pane and for terminal incident review after a target becomes `contaminated`.
 
+## Recover
+
+```bash
+404gent recover
+404gent recover --agent codex
+404gent recover --agent codex --apply
+404gent --json recover --agent codex
+```
+
+`recover` converts the diagnosis into a safe resume prompt and a selective scrub checklist. It preserves audit evidence. By default it is a dry-run; `--apply` resets the reviewed target's sticky risk state after a human has removed the risky prompt, command, or output fragments from any handoff context.
+
 ## Status
 
 ```bash

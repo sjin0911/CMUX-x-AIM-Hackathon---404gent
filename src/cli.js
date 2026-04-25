@@ -37,6 +37,10 @@ import {
   updateStateFromReport
 } from "./state.js";
 import {
+  buildRecoveryPlan,
+  formatRecoveryPlan
+} from "./recovery.js";
+import {
   appendAuditLog,
   formatReport
 } from "./report.js";
@@ -107,6 +111,11 @@ async function main(argv) {
 
   if (command === "diagnose") {
     handleDiagnose(args, config, parsed);
+    return;
+  }
+
+  if (command === "recover") {
+    handleRecover(args, config, parsed);
     return;
   }
 
@@ -358,6 +367,22 @@ function handleDiagnose(args, config, parsed) {
   printValue(diagnosis, formatDiagnosis(diagnosis), parsed);
 }
 
+function handleRecover(args, config, parsed) {
+  const limit = Number(valueFlag(args, "--limit") ?? 12);
+  const apply = args.includes("--apply");
+  const agent = valueFlag(args, "--agent");
+  const targetId = agent ? resolveTargetId({ agent }) : valueFlag(args, "--target");
+  const events = readAuditEvents(config, { limit });
+  const diagnosis = buildContaminationDiagnosis(events, { targetId, limit });
+
+  if (apply && diagnosis.status !== "clean") {
+    resetState(config, { targetId: diagnosis.target === "local" ? "local" : diagnosis.target });
+  }
+
+  const plan = buildRecoveryPlan(diagnosis, { applied: apply && diagnosis.status !== "clean" });
+  printValue(plan, formatRecoveryPlan(plan), parsed);
+}
+
 function handleDoctor(config, parsed) {
   const checks = runDoctor(config);
   printValue(checks, formatDoctor(checks), parsed);
@@ -565,6 +590,7 @@ Usage:
   404gent scan-output <text>
   404gent run -- <command>
   404gent diagnose [--agent <name>] [--target <id>] [--limit <n>]
+  404gent recover [--agent <name>] [--target <id>] [--limit <n>] [--apply]
   404gent agent --name <name> [--prompt <text>] -- <agent command>
   404gent rules list [--type prompt|command|output] [--category name]
   404gent rules summary

@@ -32,16 +32,19 @@ Blocked contamination events now produce an audit-backed diagnosis instead of on
 - root cause: which prompt, command, or output introduced the risky pattern
 - timeline: recent audit events for the target
 - node graph: compact provenance view from prompt to command/output
-- sanitize-and-resume playbook: concrete recovery steps and reset command
+- sanitize-and-resume playbook: concrete recovery steps, safe resume prompt, and reset command
 
 The same analysis is available in the terminal:
 
 ```bash
 node src/cli.js diagnose --agent codex
+node src/cli.js recover --agent codex
 node src/cli.js --json diagnose --agent codex
 ```
 
 When `cmux.quarantinePane` is enabled, the right-side review pane includes this diagnosis so the sidebar notification leads to actionable incident context.
+
+`recover` is intentionally dry-run by default. After review, `recover --agent codex --apply` resets only the sticky risk state for that target and preserves JSONL audit evidence for incident review.
 
 ### Sidebar Log And Progress
 
