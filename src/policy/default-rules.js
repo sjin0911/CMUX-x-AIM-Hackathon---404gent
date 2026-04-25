@@ -360,6 +360,51 @@ export const defaultRules = [
     remediation: "Prefer OS keychain or short-lived credentials."
   },
   {
+    id: "command.macos-keychain-access",
+    appliesTo: ["command"],
+    severity: "high",
+    category: "macos_secret_access",
+    pattern: "\\bsecurity\\s+(dump-keychain|find-(generic|internet)-password|export|unlock-keychain)\\b",
+    rationale: "Command attempts to read or export macOS Keychain material.",
+    remediation: "Use scoped credential access through approved tooling and never dump Keychain contents."
+  },
+  {
+    id: "command.macos-tcc-privacy-db",
+    appliesTo: ["command"],
+    severity: "high",
+    category: "macos_privacy_tampering",
+    pattern: "\\btccutil\\s+reset\\b|\\bsqlite3\\b.{0,160}\\bTCC\\.db\\b|\\/Library\\/Application Support\\/com\\.apple\\.TCC\\/TCC\\.db",
+    rationale: "Command may reset or modify macOS privacy permission state.",
+    remediation: "Do not automate TCC privacy changes from an agent; require manual user review."
+  },
+  {
+    id: "command.macos-quarantine-bypass",
+    appliesTo: ["command"],
+    severity: "high",
+    category: "macos_gatekeeper_bypass",
+    pattern: "\\bxattr\\s+(-d|-dr)\\s+com\\.apple\\.quarantine\\b|\\bspctl\\s+--master-disable\\b",
+    rationale: "Command attempts to remove macOS quarantine attributes or disable Gatekeeper.",
+    remediation: "Keep Gatekeeper protections enabled and inspect downloaded code before execution."
+  },
+  {
+    id: "command.macos-launchagent-persistence",
+    appliesTo: ["command"],
+    severity: "high",
+    category: "persistence",
+    pattern: "\\b(echo|printf|cat|tee|cp|mv|plutil)\\b.{0,180}(\\/Library\\/Launch(Daemons|Agents)|~\\/Library\\/LaunchAgents|\\$HOME\\/Library\\/LaunchAgents)",
+    rationale: "Command may install macOS LaunchAgent or LaunchDaemon persistence.",
+    remediation: "Require human review before modifying macOS launch service configuration."
+  },
+  {
+    id: "command.macos-automation-control",
+    appliesTo: ["command"],
+    severity: "medium",
+    category: "macos_automation_abuse",
+    pattern: "\\bosascript\\b.{0,220}(System Events|keystroke|do shell script|tell application)",
+    rationale: "Command uses AppleScript automation that can drive apps or execute shell commands.",
+    remediation: "Confirm the automation target and avoid UI control or shell execution from untrusted prompts."
+  },
+  {
     id: "output.private-key",
     appliesTo: ["output"],
     severity: "critical",

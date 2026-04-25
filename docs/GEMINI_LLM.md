@@ -53,6 +53,46 @@ node src/cli.js --config examples/404gent.mock-llm.config.json scan-prompt "Plea
 
 Mock mode returns the same finding shape as Gemini and exercises the same decision merge path. It is not a replacement for real review; it is a stable demo fallback.
 
+## Safe Prompt Rewrite
+
+`recover --rewrite` uses the configured LLM provider to turn a blocked prompt into a safer replacement prompt:
+
+```bash
+node src/cli.js --config examples/404gent.mock-llm.config.json recover --agent prompt-agent --rewrite
+```
+
+With Gemini enabled, the same command calls Gemini using structured JSON:
+
+```bash
+export GEMINI_API_KEY="..."
+node src/cli.js --config examples/404gent.config.json recover --agent prompt-agent --rewrite
+```
+
+The rewrite request includes the contamination diagnosis and a redacted prompt preview. The model is instructed to preserve only benign development intent and remove prompt injection, secret access, exfiltration, destructive command, and guardrail bypass intent. The command does not automatically resume the agent; it prints the replacement prompt for human approval.
+
+## Language Coverage
+
+404gent does not try to encode every language as local regex rules. The intended split is:
+
+- local rules: fast, deterministic coverage for common high-confidence patterns and terminal commands
+- LLM review: multilingual and paraphrased intent review when local rules are insufficient
+- LLM rewrite: safe prompt transformation after a block or suspicious audit trail
+
+For multilingual prompts, enable Gemini review on `allow` and `medium` events:
+
+```json
+{
+  "llm": {
+    "enabled": true,
+    "provider": "gemini",
+    "runOn": ["allow", "medium"],
+    "redactInputs": true
+  }
+}
+```
+
+This keeps the rulebase maintainable while giving the demo a credible answer for non-English, obfuscated, or paraphrased attacks.
+
 ## Structured Output
 
 The Gemini request uses:

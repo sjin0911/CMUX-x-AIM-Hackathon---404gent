@@ -140,7 +140,7 @@ export function logCmuxReport(report, config = {}) {
   return logCmux(message, { level, source }, config);
 }
 
-export function openCmuxQuarantinePane(report, config = {}) {
+export function openCmuxQuarantinePane(report, config = {}, { diagnosis } = {}) {
   if (!config.cmux?.quarantinePane || report.decision !== "block") {
     return { status: "skipped" };
   }
@@ -170,6 +170,8 @@ export function openCmuxQuarantinePane(report, config = {}) {
     "",
     "The original action was blocked and was not executed.",
     "Review this pane, the audit log, and the originating agent before retrying.",
+    "",
+    ...(diagnosis ? formatQuarantineDiagnosis(diagnosis) : []),
     "",
     "blocked text:",
     truncate(report.event?.text || "", 2000)
@@ -219,4 +221,50 @@ function truncate(value, maxChars) {
   }
 
   return `${text.slice(0, maxChars)}\n...[truncated]`;
+}
+
+function formatQuarantineDiagnosis(diagnosis) {
+  const lines = [
+    "contamination diagnosis:",
+    `target: ${diagnosis.target}`,
+    `status: ${String(diagnosis.status).toUpperCase()}`,
+    `root cause: ${diagnosis.rootCause}`,
+    "",
+    "timeline:"
+  ];
+
+  for (const step of diagnosis.timeline.slice(-6)) {
+    const finding = step.finding
+      ? `${step.finding.severity}/${step.finding.category}/${step.finding.id}`
+      : "no findings";
+    lines.push(`- [${step.index}] ${step.eventType} ${String(step.decision).toUpperCase()} ${finding}`);
+  }
+
+  lines.push("");
+  lines.push("graph:");
+  for (const edge of diagnosis.graph.slice(-6)) {
+    lines.push(edge);
+  }
+
+  lines.push("");
+  lines.push("sanitize & resume playbook:");
+  for (const action of diagnosis.playbook.slice(0, 5)) {
+    lines.push(`- ${action}`);
+  }
+  lines.push(`- Dry-run recovery: node src/cli.js recover${recoverTargetFlag(diagnosis)}`);
+  lines.push(`- Apply after review: node src/cli.js recover${recoverTargetFlag(diagnosis)} --apply`);
+
+  return lines;
+}
+
+function recoverTargetFlag(diagnosis) {
+  if (diagnosis.target?.startsWith("agent:")) {
+    return ` --agent ${diagnosis.target.slice("agent:".length)}`;
+  }
+
+  if (diagnosis.target && diagnosis.target !== "local") {
+    return ` --target ${diagnosis.target}`;
+  }
+
+  return "";
 }
